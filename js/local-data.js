@@ -247,6 +247,10 @@ function updateLocalProgress(userId, chapterId, status, progressPct) {
 
 // ===== 本地题库操作 =====
 function getLocalQuestions(chapterId) {
+    // 使用真实题库（来自exam-questions.js）
+    if (typeof EXAM_QUESTIONS !== 'undefined' && EXAM_QUESTIONS[chapterId]) {
+        return EXAM_QUESTIONS[chapterId].map(q => ({ ...q, chapterId: chapterId }));
+    }
     return (getStore('questions') || []).filter(q => q.chapterId === chapterId);
 }
 
