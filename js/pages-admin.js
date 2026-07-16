@@ -252,6 +252,14 @@ function deleteAccountConfirm(userId, name) {
 PageRenderers['adm-resources'] = async function(c) {
     let chCards = CHAPTERS_CONFIG.map(ch => {
         const groupLabel = ch.groupType === 'common' ? '通用' : ch.groupType === 'sales' ? '销售组' : '置换组';
+        // 获取学习要点内容长度（用于展示状态）
+        let contentStatus = '<span class="badge badge-success">已配置</span>';
+        if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[ch.id]) {
+            const bodyLen = CHAPTER_CONTENTS[ch.id].body.length;
+            contentStatus = `<span class="badge badge-success">已配置</span> <span style="font-size:12px;color:var(--text-muted)">(${Math.round(bodyLen/1000)}k字)</span>`;
+        } else {
+            contentStatus = '<span class="badge badge-muted">未配置</span>';
+        }
         return `
         <div class="card" style="margin-top:16px">
             <div class="card-header">
@@ -260,14 +268,15 @@ PageRenderers['adm-resources'] = async function(c) {
                     <span class="badge badge-primary" style="margin-left:8px;font-size:11px">${groupLabel}</span>
                 </div>
                 <div style="display:flex;gap:8px">
-                    <button class="btn btn-ghost btn-sm" onclick="showToast('编辑功能开发中','warning')">编辑要点</button>
-                    <button class="btn btn-primary btn-sm" onclick="showToast('上传功能开发中','warning')">📎 上传</button>
+                    <button class="btn btn-primary btn-sm" onclick="previewChapterContent(${ch.id}, '${ch.title}')">👁️ 查看要点</button>
+                    <button class="btn btn-ghost btn-sm" onclick="previewChapterContent(${ch.id}, '${ch.title}')">编辑要点</button>
+                    <button class="btn btn-ghost btn-sm" onclick="showToast('文件上传需连接Supabase Storage，暂未开放','warning')">📎 上传</button>
                 </div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)">📄 SOP文档</span>
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)">🎬 教学视频</span>
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)">🖼️ 流程图</span>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
+                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)">学习要点：${contentStatus}</span>
+                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-muted)">📄 SOP文档</span>
+                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-muted)">🎬 教学视频</span>
             </div>
             <div style="font-size:13px;color:var(--text-muted)">及格分数：${ch.passingScore}分 · 考试限时：${ch.timeLimit}分钟</div>
         </div>`;
@@ -277,16 +286,50 @@ PageRenderers['adm-resources'] = async function(c) {
         <div class="topbar">
             <h2>📁 资料库管理</h2>
             <div class="topbar-actions">
-                <button class="btn btn-primary btn-sm" onclick="showToast('批量上传功能开发中','warning')">📎 批量上传</button>
+                <button class="btn btn-primary btn-sm" onclick="showToast('文件上传需连接Supabase Storage','warning')">📎 批量上传</button>
             </div>
         </div>
         <div class="card" style="background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(6,182,212,.05));border-color:rgba(99,102,241,.15)">
-            <p style="color:var(--text-secondary);font-size:14px">管理各章节的SOP学习资料。支持上传文档(PDF/Word)、视频、图片等，上传后可整理为学习要点供学员学习。</p>
-            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">💡 提示：部署后连接Supabase Storage即可使用文件上传功能</p>
+            <p style="color:var(--text-secondary);font-size:14px">管理各章节的SOP学习资料。点击「查看要点」可预览每章的完整学习内容。</p>
+            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">💡 提示：文件上传功能需连接Supabase Storage后开放</p>
         </div>
         ${chCards}
+        <div id="contentPreviewModal"></div>
     `;
 };
+
+// 预览章节学习要点内容
+function previewChapterContent(chapterId, chapterTitle) {
+    const modal = document.getElementById('contentPreviewModal');
+    if (!modal) return;
+
+    let body = '';
+    if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
+        body = CHAPTER_CONTENTS[chapterId].body;
+    } else {
+        body = '# 内容未配置\n\n该章节的学习要点尚未配置，请联系管理员。';
+    }
+
+    const htmlContent = markdownToHtml(body);
+
+    modal.innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)this.remove()" style="z-index:1000">
+            <div class="modal" style="width:90vw;max-width:900px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)">
+                    <div class="modal-title" style="margin:0">📖 第${chapterId}章：${chapterTitle} - 学习要点</div>
+                    <button class="btn btn-ghost btn-sm" onclick="this.closest('.modal-overlay').remove()">✕ 关闭</button>
+                </div>
+                <div style="flex:1;overflow-y:auto;padding:20px 8px;font-size:14px;line-height:1.8">
+                    <div class="md-content">${htmlContent}</div>
+                </div>
+                <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text-muted)">共 ${Math.round(body.length/1000)}k 字</span>
+                    <button class="btn btn-ghost btn-sm" onclick="this.closest('.modal-overlay').remove()">关闭</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
 // 管理员 - 题库管理
 PageRenderers['adm-questions'] = async function(c) {
