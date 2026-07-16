@@ -35,7 +35,7 @@ const GROUPS = {
 
 // ===== 章节配置 =====
 // group_type: 'common'=通用, 'sales'=销售组专用, 'replace'=置换组专用
-const CHAPTERS_CONFIG = [
+const CHAPTERS_CONFIG_DEFAULT = [
     { id: 1, order: 1, title: '留学业务通识', groupType: 'common', passingScore: 80, timeLimit: 30 },
     { id: 2, order: 2, title: '定校咨询', groupType: 'common', passingScore: 80, timeLimit: 30 },
     { id: 3, order: 3, title: '材料审核', groupType: 'common', passingScore: 80, timeLimit: 30 },
@@ -50,6 +50,24 @@ const CHAPTERS_CONFIG = [
     { id: 12, order: 12, title: '申请跟进', groupType: 'replace', passingScore: 80, timeLimit: 30 },
     { id: 13, order: 13, title: '思维模型', groupType: 'common', passingScore: 80, timeLimit: 30 },
 ];
+
+// 加载保存的章节配置，若无则用默认值
+function loadChapterConfig() {
+    let saved = null;
+    try {
+        const v = localStorage.getItem('sop_chapterConfig');
+        saved = v ? JSON.parse(v) : null;
+    } catch { saved = null; }
+    if (saved && Array.isArray(saved) && saved.length === CHAPTERS_CONFIG_DEFAULT.length) {
+        saved.forEach((s, i) => {
+            CHAPTERS_CONFIG_DEFAULT[i].passingScore = Number(s.passingScore) || 80;
+            CHAPTERS_CONFIG_DEFAULT[i].timeLimit = Number(s.timeLimit) || 30;
+        });
+    }
+}
+loadChapterConfig();
+
+const CHAPTERS_CONFIG = CHAPTERS_CONFIG_DEFAULT;
 
 // 根据组别获取章节列表
 function getChaptersForGroup(groupName) {
