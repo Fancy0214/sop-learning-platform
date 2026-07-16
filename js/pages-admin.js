@@ -544,7 +544,7 @@ PageRenderers['adm-config'] = async function(c) {
                                 <td>${ch.groupType === 'common' ? '通用' : ch.groupType === 'sales' ? '销售组' : '置换组'}</td>
                                 <td><input type="number" class="q-input" value="${ch.passingScore}" style="width:80px;padding:6px 10px" id="score_${ch.id}"></td>
                                 <td><input type="number" class="q-input" value="${ch.timeLimit}" style="width:80px;padding:6px 10px" id="time_${ch.id}"></td>
-                                <td><button class="btn btn-ghost btn-sm" onclick="showToast('配置已保存','success')">保存</button></td>
+                                <td><button class="btn btn-ghost btn-sm" onclick="saveChapterConfig()">保存</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -580,3 +580,29 @@ PageRenderers['adm-config'] = async function(c) {
         </div>
     `;
 };
+
+// 保存章节及格分数配置
+function saveChapterConfig() {
+    CHAPTERS_CONFIG.forEach(ch => {
+        const scoreEl = document.getElementById('score_' + ch.id);
+        const timeEl = document.getElementById('time_' + ch.id);
+        if (scoreEl) {
+            const val = parseInt(scoreEl.value);
+            ch.passingScore = isNaN(val) || val < 0 ? 80 : Math.min(val, 100);
+            scoreEl.value = ch.passingScore;
+        }
+        if (timeEl) {
+            const val = parseInt(timeEl.value);
+            ch.timeLimit = isNaN(val) || val <= 0 ? 30 : Math.min(val, 120);
+            timeEl.value = ch.timeLimit;
+        }
+    });
+    // 持久化到 localStorage
+    const configData = CHAPTERS_CONFIG.map(ch => ({ id: ch.id, passingScore: ch.passingScore, timeLimit: ch.timeLimit }));
+    try {
+        localStorage.setItem('sop_chapterConfig', JSON.stringify(configData));
+    } catch (e) {
+        console.error('保存配置失败', e);
+    }
+    showToast('配置已保存', 'success');
+}
