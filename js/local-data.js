@@ -445,7 +445,12 @@ function getLocalEvaluations(userId, type) {
 
 // ===== 本地学习内容 =====
 function getLocalLearningContent(chapterId) {
-    // 返回预设的学习要点内容
+    // 优先使用 chapter-content.js 中的详细内容
+    if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
+        const ch = CHAPTER_CONTENTS[chapterId];
+        return [{ title: ch.title + ' - 学习要点', body: ch.body }];
+    }
+    // 回退到演示内容
     const contents = {
         1: { title: '留学业务通识 - 学习要点', body: getDemoContent(1) },
         2: { title: '定校咨询 - 学习要点', body: getDemoContent(2) },
