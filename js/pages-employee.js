@@ -250,19 +250,14 @@ PageRenderers['emp-report'] = async function(c) {
     const statuses = await getUserChapterStatus(user.id, chapters);
     const allExams = (getStore('exams') || []).filter(e => e.userId === user.id);
 
-    const passedExams = allExams.filter(e => e.totalScore);
-    const avgScore = passedExams.length > 0 ? Math.round(passedExams.reduce((a, e) => a + e.totalScore, 0) / passedExams.length) : 0;
-    const overallProgress = calcOverallProgress(statuses);
-
-    // 胜任力维度（模拟）
-    const competencies = [
-        { name: '专业知识', score: Math.min(95, avgScore + Math.floor(Math.random() * 10 - 3)), grad: 'url(#barGrad1)' },
-        { name: '沟通技巧', score: Math.min(92, avgScore + Math.floor(Math.random() * 10 - 5)), grad: 'url(#barGrad2)' },
-        { name: '需求分析', score: Math.min(90, avgScore + Math.floor(Math.random() * 10 - 4)), grad: 'url(#barGrad1)' },
-        { name: '转化能力', score: Math.max(60, avgScore - Math.floor(Math.random() * 10)), grad: 'url(#barGrad3)' },
-        { name: '系统操作', score: Math.min(93, avgScore + Math.floor(Math.random() * 8 - 2)), grad: 'url(#barGrad2)' },
-        { name: '团队协作', score: Math.min(88, avgScore + Math.floor(Math.random() * 10 - 6)), grad: 'url(#barGrad1)' },
-    ];
+    // 考试进度：按通过考核的章节数计算
+    const totalChapters = chapters.length;
+    const passedChapters = statuses.filter(s => {
+        const exam = allExams.find(e => e.chapterId === s.id);
+        return exam && exam.status === 'passed';
+    }).length;
+    const examProgressPct = totalChapters > 0 ? Math.round((passedChapters / totalChapters) * 100) : 0;
+    const allPassed = examProgressPct === 100;
 
     // 章节详情
     let chapterDetails = '';
@@ -271,7 +266,7 @@ PageRenderers['emp-report'] = async function(c) {
         const status = statuses.find(s => s.id === ch.id);
         let badge = '';
         let clickable = false;
-        if (exam && exam.totalScore) {
+        if (exam && exam.totalScore && exam.status === 'passed') {
             badge = `<span class="badge badge-success">通过 ${exam.totalScore}分</span>`;
             clickable = true;
         }
@@ -294,37 +289,30 @@ PageRenderers['emp-report'] = async function(c) {
         }
     }
 
-    const allPassed = statuses.every(s => s.isCompleted);
-    const compBarsHtml = competencies.map(cp => `
-        <div class="comp-bar">
-            <div class="name">${cp.name}</div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:${cp.score}%;background:${cp.grad}">${cp.score}</div></div>
-            <div class="score">${cp.score}</div>
-        </div>
-    `).join('');
-
     c.innerHTML = `
         <div class="topbar">
-            <h2>📈 我的评估</h2>
-            <div class="topbar-actions">
-                ${avgScore > 0 ? `<button class="btn btn-primary btn-sm" onclick="showToast('PDF导出功能','warning')">📄 导出PDF</button>` : ''}
-            </div>
+            <h2> 我的评估</h2>
         </div>
 
-        ${avgScore > 0 ? `
-        <div class="report-hero">
-            <div style="font-size:24px;font-weight:700;margin-bottom:4px">综合学习评估报告</div>
-            <div style="color:#5a6b82;font-size:14px;margin-bottom:20px">${user.group} · ${user.displayName}</div>
-            ${renderScoreRing(avgScore)}
-        </div>` : `
-        <div class="card" style="text-align:center;padding:48px">
-            <div style="font-size:48px;margin-bottom:16px">📊</div>
-            <p style="font-size:16px;color:var(--text-secondary)">完成考试后将生成评估报告</p>
-            <p style="color:#5a6b82;margin-top:8px">当前进度：${overallProgress}%</p>
-        </div>`}
+        <div class="card" style="padding:28px 32px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <div>
+                    <div style="font-size:18px;font-weight:700;color:var(--primary)">考试进度</div>
+                    <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${user.group} · ${user.displayName}</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:28px;font-weight:700;color:${allPassed ? '#10b981' : 'var(--primary)'}">${examProgressPct}%</div>
+                    <div style="font-size:12px;color:var(--text-muted)">已通过 ${passedChapters}/${totalChapters} 章</div>
+                </div>
+            </div>
+            <div style="height:16px;background:var(--bg-tertiary);border-radius:10px;overflow:hidden">
+                <div style="height:100%;width:${examProgressPct}%;border-radius:10px;background:${allPassed ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#2c3e6b,#7a9ec9)'};transition:width .6s ease"></div>
+            </div>
+            ${allPassed ? '<div style="text-align:center;margin-top:14px;font-size:14px;font-weight:600;color:#10b981">🎉 恭喜！所有章节考核已通过！</div>' : '<div style="text-align:center;margin-top:10px;font-size:13px;color:var(--text-muted)">继续加油，完成所有章节考核！</div>'}
+        </div>
 
         <div class="card">
-            <div class="card-title"><span class="emoji">📑</span>章节评估详情</div>
+            <div class="card-title"><span class="emoji"></span>章节评估详情</div>
             <div style="display:flex;flex-direction:column;gap:8px">${chapterDetails}</div>
         </div>
 
