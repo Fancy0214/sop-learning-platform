@@ -812,3 +812,93 @@ async function saveLearningContent(chapterId, title, body, editedByUserId) {
     editedContents[chapterId] = body;
     localStorage.setItem('sop_editedContents', JSON.stringify(editedContents));
 }
+
+
+// ===== 胜任力人工评分 =====
+
+/**
+ * 保存某用户某维度的人工评分
+ * @param {string} localUserId - localStorage 中的用户ID
+ * @param {string} dimensionKey - 维度key，如 'knowledge'
+ * @param {number} score - 0-100
+ * @param {string} scoredBy - 评分人ID
+ */
+async function saveCompetencyManualScore(localUserId, dimensionKey, score, scoredBy) {
+    const cloudUserId = await _getCloudUserId(localUserId);
+    const cloudScoredBy = await _getCloudUserId(scoredBy);
+    
+    if (!cloudUserId) {
+        console.warn('saveCompetencyManualScore: 找不到云端用户');
+        return false;
+    }
+
+    try {
+        // 检查是否已有该维度的评分
+        const { data: existing } = await supabaseClient
+            .from('competency_scores')
+            .select('id')
+            .eq('user_id', cloudUserId)
+            .eq('dimension_key', dimensionKey)
+            .limit(1);
+
+        if (existing && existing.length > 0) {
+            // 更新
+            await supabaseClient
+                .from('competency_scores')
+                .update({
+                    score: score,
+                    scored_by: cloudScoredBy,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', cloudUserId)
+                .eq('dimension_key', dimensionKey);
+        } else {
+            // 新增
+            await supabaseClient
+                .from('competency_scores')
+                .insert({
+                    user_id: cloudUserId,
+                    dimension_key: dimensionKey,
+                    score: score,
+                    scored_by: cloudScoredBy
+                });
+        }
+        return true;
+    } catch (e) {
+        console.error('saveCompetencyManualScore error:', e);
+        return false;
+    }
+}
+
+/**
+ * 获取某用户所有维度的人工评分
+ * @param {string} localUserId - localStorage 中的用户ID
+ * @returns {Object} { dimensionKey: score, ... }
+ */
+async function getCompetencyManualScores(localUserId) {
+    const cloudUserId = await _getCloudUserId(localUserId);
+    if (!cloudUserId) return {};
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('competency_scores')
+            .select('dimension_key, score')
+            .eq('user_id', cloudUserId);
+
+        if (error) {
+            console.error('getCompetencyManualScores error:', error);
+            return {};
+        }
+
+        const result = {};
+        if (data) {
+            data.forEach(row => {
+                result[row.dimension_key] = row.score;
+            });
+        }
+        return result;
+    } catch (e) {
+        console.error('getCompetencyManualScores error:', e);
+        return {};
+    }
+}

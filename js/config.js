@@ -115,14 +115,63 @@ const EXAM_STATUS = {
     FAILED: 'failed'
 };
 
-// ===== 胜任力维度 =====
+// ===== 胜任力维度（含章节映射与权重） =====
 const COMPETENCY_DIMENSIONS = [
-    { key: 'knowledge', name: '专业知识', description: 'SOP知识的掌握程度' },
-    { key: 'communication', name: '沟通技巧', description: '客户沟通与表达能力' },
-    { key: 'analysis', name: '需求分析', description: '分析和理解客户需求的能力' },
-    { key: 'conversion', name: '转化能力', description: '将咨询转化为签约的能力' },
-    { key: 'system', name: '系统操作', description: '系统工具的操作熟练度' },
-    { key: 'teamwork', name: '团队协作', description: '团队配合与协作能力' },
+    {
+        key: 'knowledge', name: '产品知识',
+        description: '对行业、院校产品、服务流程的理解深度',
+        chapters: [
+            { chapterId: 1, weight: 0.5 },  // 留学业务通识
+            { chapterId: 2, weight: 0.5 },  // 定校咨询
+        ]
+    },
+    {
+        key: 'discovery', name: '需求挖掘',
+        description: '分析客户数据、发现潜在需求的能力',
+        chapters: [
+            { chapterId: 4, weight: 0.5 },  // 数据接单
+            { chapterId: 8, weight: 0.3 },  // 口碑挖掘
+            { chapterId: 2, weight: 0.2 },  // 定校咨询
+        ]
+    },
+    {
+        key: 'communication', name: '沟通表达',
+        description: '专业场景下的表达说服力',
+        chapters: [
+            { chapterId: 5, weight: 0.6 },  // 签约咨询
+            { chapterId: 13, weight: 0.4 }, // 思维模型
+        ]
+    },
+    {
+        key: 'objection', name: '异议处理',
+        description: '应对客户质疑和拒绝的能力',
+        chapters: [
+            { chapterId: 5, weight: 0.5 },  // 签约咨询
+            { chapterId: 13, weight: 0.3 }, // 思维模型
+            { chapterId: 8, weight: 0.2 },  // 口碑挖掘
+        ]
+    },
+    {
+        key: 'execution', name: '流程执行',
+        description: '各环节操作的准确性和规范性',
+        chapters: [
+            { chapterId: 3, weight: 0.2 },  // 材料审核
+            { chapterId: 9, weight: 0.2 },  // 申请填写
+            { chapterId: 10, weight: 0.2 }, // 系统录入
+            { chapterId: 11, weight: 0.15 },// 申请接单
+            { chapterId: 7, weight: 0.15 }, // 机构下单
+            { chapterId: 6, weight: 0.1 },  // 出产维护
+        ]
+    },
+    {
+        key: 'conversion', name: '跟进转化',
+        description: '从签约到持续产出的转化能力',
+        chapters: [
+            { chapterId: 5, weight: 0.4 },  // 签约咨询
+            { chapterId: 12, weight: 0.4 }, // 申请跟进
+            { chapterId: 8, weight: 0.2 },  // 口碑挖掘
+        ]
+    },
 ];
 
 // ===== 通知类型 =====

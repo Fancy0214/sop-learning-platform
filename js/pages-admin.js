@@ -815,15 +815,60 @@ async function showEmployeeAssessmentModal(userId) {
     const avgScore = passedExams.length > 0 ? Math.round(passedExams.reduce((a, e) => a + e.totalScore, 0) / passedExams.length) : 0;
     const pendingExams = allExams.filter(e => e.status === 'submitted' && !e.totalScore);
 
-    // 胜任力维度
-    const competencies = [
-        { name: '专业知识', score: Math.min(95, avgScore + Math.floor(Math.random() * 10 - 3)) },
-        { name: '沟通技巧', score: Math.min(92, avgScore + Math.floor(Math.random() * 10 - 5)) },
-        { name: '需求分析', score: Math.min(90, avgScore + Math.floor(Math.random() * 10 - 4)) },
-        { name: '转化能力', score: Math.max(60, avgScore - Math.floor(Math.random() * 10)) },
-        { name: '系统操作', score: Math.min(93, avgScore + Math.floor(Math.random() * 8 - 2)) },
-        { name: '团队协作', score: Math.min(88, avgScore + Math.floor(Math.random() * 10 - 6)) },
-    ];
+    // 获取人工评分
+    let manualScores = {};
+    if (typeof getCompetencyManualScores === 'function') {
+        manualScores = await getCompetencyManualScores(userId) || {};
+    }
+    // localStorage 兜底
+    const localManualScores = JSON.parse(localStorage.getItem('sop_competency_manual_' + userId) || '{}');
+    manualScores = { ...localManualScores, ...manualScores };
+
+    // 智能评分：基于章节考试加权计算
+    const competencies = COMPETENCY_DIMENSIONS.map(dim => {
+        let weightedSum = 0;
+        let totalWeight = 0;
+        let mappedChapters = 0;
+        let coveredChapters = 0;
+
+        dim.chapters.forEach(mapping => {
+            // 检查该章节是否属于该员工组别
+            const chapter = CHAPTERS_CONFIG.find(c => c.id === mapping.chapterId);
+            if (!chapter) return;
+            // 通用章节所有人都要考；专属章节需匹配组别
+            if (chapter.groupType !== 'common' && chapter.groupType !== emp.group) return;
+            
+            mappedChapters++;
+            const exam = allExams.find(e => e.chapterId === mapping.chapterId);
+            if (exam && exam.totalScore) {
+                weightedSum += exam.totalScore * mapping.weight;
+                totalWeight += mapping.weight;
+                coveredChapters++;
+            }
+        });
+
+        const aiScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : null;
+
+        // 人工评分
+        const manualScore = manualScores[dim.key] !== undefined ? manualScores[dim.key] : null;
+
+        // 最终分 = 智能评分×50% + 人工打分×50%
+        let finalScore = null;
+        if (aiScore !== null && manualScore !== null) {
+            finalScore = Math.round(aiScore * 0.5 + manualScore * 0.5);
+        }
+
+        return {
+            key: dim.key,
+            name: dim.name,
+            description: dim.description,
+            aiScore: aiScore,
+            manualScore: manualScore,
+            finalScore: finalScore,
+            mappedChapters: mappedChapters,
+            coveredChapters: coveredChapters
+        };
+    });
 
     // 章节考核详情
     let examRows = '';
@@ -847,19 +892,55 @@ async function showEmployeeAssessmentModal(userId) {
         examRows += `<tr><td>第${ch.order}章 ${ch.title}</td><td>${score}</td><td>${statusBadge}</td></tr>`;
     }
 
-    // 胜任力柱状图
+    // 胜任力柱状图（含人工打分输入）
     const compBarsHtml = competencies.map(cp => {
-        const grad = cp.score >= 80 ? '#10b981' : cp.score >= 60 ? '#2c3e6b' : '#ef4444';
-        return `<div class="comp-bar">
-            <div class="name">${cp.name}</div>
-            <div class="bar-wrap"><div class="bar-fill" style="width:${cp.score}%;background:${grad}">${cp.score}</div></div>
-            <div class="score">${cp.score}</div>
+        // 显示分数：优先用最终分，否则用AI分或人工分
+        const displayScore = cp.finalScore !== null ? cp.finalScore : (cp.aiScore !== null ? cp.aiScore : (cp.manualScore !== null ? cp.manualScore : null));
+        const scoreColor = displayScore !== null ? (displayScore >= 80 ? '#10b981' : displayScore >= 60 ? '#2c3e6b' : '#ef4444') : '#9ca3af';
+        const scoreDisplay = displayScore !== null ? displayScore : '--';
+        const barWidth = displayScore !== null ? displayScore : 0;
+        const dataCompleteness = cp.coveredChapters > 0 ? `${cp.coveredChapters}/${cp.mappedChapters}章节` : '无数据';
+
+        // 人工打分输入框的当前值
+        const manualInputVal = cp.manualScore !== null ? cp.manualScore : '';
+
+        return `<div class="comp-bar" style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                <div class="name" style="font-weight:600;font-size:14px;color:var(--text-primary)">${cp.name}</div>
+                <div style="font-size:11px;color:var(--text-muted)">数据覆盖: ${dataCompleteness}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="bar-wrap" style="flex:1"><div class="bar-fill" style="width:${barWidth}%;background:${scoreColor};min-width:${displayScore !== null ? '30px' : '0'}">${scoreDisplay}</div></div>
+                <div class="score" style="min-width:30px;text-align:right;font-weight:600;color:${scoreColor}">${scoreDisplay}</div>
+            </div>
+            <div style="display:flex;gap:12px;font-size:12px;color:var(--text-muted);margin-bottom:6px">
+                <span>智能: ${cp.aiScore !== null ? cp.aiScore + '分' : '--'}</span>
+                <span>|</span>
+                <span>人工: ${cp.manualScore !== null ? cp.manualScore + '分' : '未评'}</span>
+                ${cp.finalScore !== null ? `<span>|</span><span style="font-weight:600;color:${scoreColor}">综合: ${cp.finalScore}分</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+                <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap">人工打分:</label>
+                <input type="number" min="0" max="100" value="${manualInputVal}" placeholder="0-100"
+                    id="manual_score_${cp.key}"
+                    style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:center">
+                <button onclick="saveManualScore('${userId}','${cp.key}')" class="btn btn-ghost btn-sm" style="font-size:12px;padding:3px 10px">保存</button>
+            </div>
         </div>`;
     }).join('');
 
     // 评估结论
-    const top2 = [...competencies].sort((a, b) => b.score - a.score).slice(0, 2);
-    const bottom1 = [...competencies].sort((a, b) => a.score - b.score).slice(0, 1);
+    const validCompetencies = competencies.filter(cp => cp.finalScore !== null || cp.aiScore !== null);
+    const top2 = [...validCompetencies].sort((a, b) => {
+        const sa = a.finalScore !== null ? a.finalScore : a.aiScore;
+        const sb = b.finalScore !== null ? b.finalScore : b.aiScore;
+        return sb - sa;
+    }).slice(0, 2);
+    const bottom1 = [...validCompetencies].sort((a, b) => {
+        const sa = a.finalScore !== null ? a.finalScore : a.aiScore;
+        const sb = b.finalScore !== null ? b.finalScore : b.aiScore;
+        return sa - sb;
+    }).slice(0, 1);
     const totalChapters = chapters.length;
     const completedChapters = chapters.filter(ch => {
         const e = allExams.find(ex => ex.chapterId === ch.id);
@@ -867,10 +948,14 @@ async function showEmployeeAssessmentModal(userId) {
     }).length;
     const allPassed = completedChapters === totalChapters && totalChapters > 0;
 
+    // 新的综合平均分：基于胜任力最终分（或AI分）计算
+    const competencyScores = competencies.map(cp => cp.finalScore !== null ? cp.finalScore : cp.aiScore).filter(s => s !== null);
+    const competencyAvg = competencyScores.length > 0 ? Math.round(competencyScores.reduce((a, b) => a + b, 0) / competencyScores.length) : 0;
+
     let suggestion = '';
     if (avgScore === 0) {
         suggestion = '<span style="color:#5a6b82">○ 暂无数据，学员尚未完成任何考试</span>';
-    } else if (allPassed && avgScore >= 80) {
+    } else if (allPassed && competencyAvg >= 80) {
         suggestion = '<strong style="color:#059669">✓ 转正建议：所有章节考试已通过且综合评分优秀，建议予以转正</strong>';
     } else if (allPassed) {
         suggestion = '<strong style="color:#b45309">○ 所有章节已通过，但综合评分仍有提升空间，建议加强薄弱项后予以转正</strong>';
@@ -895,7 +980,7 @@ async function showEmployeeAssessmentModal(userId) {
                 <!-- 基本信息 -->
                 <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
                     <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
-                        <div style="font-size:28px;font-weight:700;color:var(--primary)">${avgScore || '-'}</div>
+                        <div style="font-size:28px;font-weight:700;color:var(--primary)">${competencyAvg || '-'}</div>
                         <div style="font-size:12px;color:var(--text-muted);margin-top:4px">综合平均分</div>
                     </div>
                     <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
@@ -933,9 +1018,9 @@ async function showEmployeeAssessmentModal(userId) {
                 <div>
                     <h4 style="font-size:15px;margin:0 0 12px;color:var(--text-primary)">💡 评估结论与建议</h4>
                     <div style="line-height:2;color:var(--text-secondary);font-size:14px">
-                        <p style="margin-bottom:12px"><strong style="color:#059669">✓ 总体评价：</strong>综合评分${avgScore || '暂无'}分，${avgScore >= 80 ? '已达到岗位要求标准，表现优秀' : avgScore >= 60 ? '接近岗位要求标准，继续努力' : '距离岗位要求尚有差距，需加强基础学习'}。</p>
-                        ${avgScore > 0 ? `<p style="margin-bottom:12px"><strong style="color:#2c3e6b">💡 优势领域：</strong>${top2.map(c => c.name + '（' + c.score + '分）').join('、')}表现突出。</p>
-                        <p style="margin-bottom:12px"><strong style="color:#b45309">⚠ 待提升：</strong>${bottom1.map(c => c.name + '（' + c.score + '分）').join('')}仍有提升空间。</p>` : ''}
+                        <p style="margin-bottom:12px"><strong style="color:#059669">✓ 总体评价：</strong>综合评分${competencyAvg || '暂无'}分，${competencyAvg >= 80 ? '已达到岗位要求标准，表现优秀' : competencyAvg >= 60 ? '接近岗位要求标准，继续努力' : competencyAvg > 0 ? '距离岗位要求尚有差距，需加强基础学习' : '暂无评估数据'}。</p>
+                        ${competencyAvg > 0 ? `<p style="margin-bottom:12px"><strong style="color:#2c3e6b">💡 优势领域：</strong>${top2.map(c => c.name + '（' + (c.finalScore !== null ? c.finalScore : c.aiScore) + '分）').join('、')}表现突出。</p>
+                        <p style="margin-bottom:12px"><strong style="color:#b45309">⚠ 待提升：</strong>${bottom1.map(c => c.name + '（' + (c.finalScore !== null ? c.finalScore : c.aiScore) + '分）').join('')}仍有提升空间。</p>` : ''}
                         <p>${suggestion}</p>
                     </div>
                 </div>
@@ -944,6 +1029,34 @@ async function showEmployeeAssessmentModal(userId) {
     </div>`;
 
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// 保存人工评分
+async function saveManualScore(userId, dimensionKey) {
+    const input = document.getElementById('manual_score_' + dimensionKey);
+    if (!input) return;
+    const score = parseInt(input.value);
+    if (isNaN(score) || score < 0 || score > 100) {
+        alert('请输入 0-100 之间的整数');
+        return;
+    }
+    
+    // 保存云端
+    if (isSupabaseReady()) {
+        const saved = await saveCompetencyManualScore(userId, dimensionKey, score, currentUserId);
+        if (!saved) {
+            alert('云端保存失败，已保存到本地');
+        }
+    }
+    
+    // 同步保存到 localStorage
+    const localScores = JSON.parse(localStorage.getItem('sop_competency_manual_' + userId) || '{}');
+    localScores[dimensionKey] = score;
+    localStorage.setItem('sop_competency_manual_' + userId, JSON.stringify(localScores));
+    
+    // 提示成功并刷新评估面板
+    alert('评分已保存');
+    showEmployeeAssessmentModal(userId);
 }
 
 // 管理员 - 系统配置
