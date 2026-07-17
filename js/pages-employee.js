@@ -494,7 +494,7 @@ async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
                     <div style="font-size:14px;color:#1e2d52;margin-bottom:8px;font-weight:500;line-height:1.6">${sanitizeMarkdownText(q.questionText)}</div>
                     <div style="font-size:13px;color:#5a6b82;margin-bottom:4px">你的回答：</div>
                     <div style="padding:8px 12px;background:#fff;border-radius:6px;font-size:14px;color:#1e2d52;line-height:1.7;white-space:pre-wrap;min-height:30px;border:1px solid #d0d7e2">${sanitizeMarkdownText(item.userAnswerText) || '(未作答)'}</div>
-                    ${item.correctAnswerText ? '<div style="font-size:13px;color:#5a6b82;margin-top:8px;margin-bottom:4px">参考要点：</div><div style="padding:6px 12px;background:#eef6ff;border-radius:6px;font-size:13px;color:#2c3e6b;line-height:1.6">' + sanitizeMarkdownText(item.correctAnswerText) + '</div>' : ''}
+                    ${exam.status !== 'submitted' && item.correctAnswerText ? '<div style="font-size:13px;color:#5a6b82;margin-top:8px;margin-bottom:4px">参考要点：</div><div style="padding:6px 12px;background:#eef6ff;border-radius:6px;font-size:13px;color:#2c3e6b;line-height:1.6">' + sanitizeMarkdownText(item.correctAnswerText) + '</div>' : ''}
                 </div>`;
             }).join('')}
         </div>`;
