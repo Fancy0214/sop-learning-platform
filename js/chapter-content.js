@@ -2889,8 +2889,10 @@ function getChapterContent(chapterId) {
 function markdownToHtml(md) {
     if (!md) return '';
     let html = md;
-    // Code blocks
-    html = html.replace(/```([\s\S]*?)```/g, '<pre class="md-code-block"><code>$1</code></pre>');
+    // Code blocks (```) → 改为引用样式卡片，不再用代码块灰底
+    html = html.replace(/```([\s\S]*?)```/g, '<div class="md-example-block">$1</div>');
+    // Inline backticks (`) → 去掉，不再渲染为灰色代码框
+    html = html.replace(/`([^`]+)`/g, '$1');
     // Headers
     html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
     html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
@@ -2900,6 +2902,8 @@ function markdownToHtml(md) {
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     // Italic
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Highlight (==text==) → 重点强调，特殊颜色
+    html = html.replace(/==([^=]+)==/g, '<span class="text-highlight">$1</span>');
     // Blockquote
     html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
     // Unordered lists
@@ -2924,6 +2928,8 @@ function markdownToHtml(md) {
     html = html.replace(/(<\/h[1-4]>)<\/p>/g, '$1');
     html = html.replace(/<p>(<pre)/g, '$1');
     html = html.replace(/(<\/pre>)<\/p>/g, '$1');
+    html = html.replace(/<p>(<div class="md-example)/g, '$1');
+    html = html.replace(/(<\/div>)<\/p>/g, '$1');
     html = html.replace(/<p>(<ul>)/g, '$1');
     html = html.replace(/(<\/ul>)<\/p>/g, '$1');
     html = html.replace(/<p>(<hr>)<\/p>/g, '$1');
