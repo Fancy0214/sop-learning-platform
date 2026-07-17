@@ -592,15 +592,61 @@ PageRenderers['adm-scoring'] = async function(c) {
                     <span class="badge badge-warning">待评分</span>
                 </div>
                 <div style="padding:14px;background:#e8ecf4;border-radius:10px;margin-bottom:14px">
-                    <div style="font-size:13px;color:#5a6b82;margin-bottom:6px">学员答题数据：</div>
+                    <div style="font-size:13px;color:#5a6b82;margin-bottom:10px;font-weight:600">📝 学员答题数据：</div>
                     <div style="font-size:14px;line-height:1.7">
-                        ${r.answers ? Object.entries(r.answers).map(([k, v]) => {
-                            return `<div style="margin-bottom:8px;padding:8px;background:var(--bg-card);border-radius:6px">
-                                <span style="font-size:12px;color:#5a6b82">题目${parseInt(k) + 1}：</span>
-                                ${v.text || '(选择题)'}
-                                ${v.file ? `<br><span style="color:#2c3e6b;font-size:12px;font-weight:500">📎 ${v.file}</span>` : ''}
-                            </div>`;
-                        }).join('') : '<span class="text-muted">无答题数据</span>'}
+                        ${(function() {
+                            const qs = r.questionsSnapshot || [];
+                            const ans = r.answers || {};
+                            if (qs.length === 0 && Object.keys(ans).length === 0) {
+                                return '<div style="color:#5a6b82;font-size:13px">暂无答题数据</div>';
+                            }
+                            let html = '';
+                            const totalQs = Math.max(qs.length, Object.keys(ans).length);
+                            for (let i = 0; i < totalQs; i++) {
+                                const q = qs[i] || {};
+                                const a = ans[i] || ans[String(i)] || {};
+                                const typeLabel = {'choice_single':'单选题','choice_multi':'多选题','true_false':'判断题','fill_blank':'填空题','essay':'问答题','practice':'实操题'}[q.questionType] || q.questionType || '未知题型';
+                                html += '<div style="margin-bottom:10px;padding:10px 12px;background:#ffffff;border-radius:8px;border-left:3px solid #7a9ec9">';
+                                html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+                                html += '<span style="font-size:12px;font-weight:700;color:#1e2d52">题目${i + 1}</span>';
+                                html += '<span style="font-size:11px;padding:2px 8px;background:#e3ecf7;color:#2c3e6b;border-radius:10px">' + typeLabel + '</span>';
+                                html += '</div>';
+                                // 题干
+                                if (q.questionText) {
+                                    html += '<div style="font-size:14px;color:#1e2d52;margin-bottom:6px;font-weight:500;line-height:1.6">' + q.questionText + '</div>';
+                                }
+                                // 选项（选择类题目）
+                                if ((q.questionType === 'choice_single' || q.questionType === 'choice_multi' || q.questionType === 'true_false') && q.options && q.options.length) {
+                                    const ansLabel = a.selected || '(未作答)';
+                                    const ansText = Array.isArray(ansLabel) ? ansLabel.join('、') : ansLabel;
+                                    const isUnanswered = !a.selected;
+                                    html += '<div style="font-size:13px;color:#5a6b82;margin-bottom:4px">选项：</div>';
+                                    q.options.forEach((opt, oi) => {
+                                        const isAns = ansLabel === String.fromCharCode(65 + oi) || (Array.isArray(ansLabel) && ansLabel.includes(String.fromCharCode(65 + oi)));
+                                        const bg = isAns ? '#e3ecf7' : '#f8f9fc';
+                                        const weight = isAns ? '700' : '400';
+                                        const border = isAns ? '1px solid #7a9ec9' : '1px solid #e8ecf4';
+                                        html += '<div style="padding:4px 10px;margin:2px 0;border-radius:6px;font-size:13px;background:' + bg + ';border:' + border + ';color:' + (isAns ? '#1e2d52' : '#5a6b82') + ';font-weight:' + weight + '">' + String.fromCharCode(65 + oi) + '. ' + opt + (isAns ? ' ✓' : '') + '</div>';
+                                    });
+                                    html += '<div style="margin-top:4px;font-size:12px;color:#b45309;font-weight:600">📌 学员答案：' + ansText + '</div>';
+                                }
+                                // 填空题
+                                else if (q.questionType === 'fill_blank') {
+                                    html += '<div style="font-size:13px;color:#5a6b82;margin-bottom:2px">学员回答：</div>';
+                                    html += '<div style="padding:6px 10px;background:#f8f9fc;border-radius:6px;font-size:14px;color:#1e2d52;min-height:28px">' + (a.text || '<span style=\'color:#b45309\'>未作答</span>') + '</div>';
+                                }
+                                // 问答题/实操题（主观题 - 重点展示）
+                                else if (q.questionType === 'essay' || q.questionType === 'practice') {
+                                    html += '<div style="font-size:13px;color:#5a6b82;margin-bottom:2px">学员回答：</div>';
+                                    html += '<div style="padding:8px 12px;background:#f0f4fa;border-radius:6px;font-size:14px;color:#1e2d52;line-height:1.7;white-space:pre-wrap;min-height:36px;border:1px solid #c5d4ea">' + (a.text || '<span style=\'color:#b45309\'>未作答</span>') + '</div>';
+                                    if (a.file) {
+                                        html += '<div style="margin-top:4px;font-size:12px;color:#2c3e6b;font-weight:500">📎 附件：' + a.file + '</div>';
+                                    }
+                                }
+                                html += '</div>';
+                            }
+                            return html;
+                        })()}
                     </div>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
