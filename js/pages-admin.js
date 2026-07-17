@@ -602,20 +602,19 @@ PageRenderers['adm-scoring'] = async function(c) {
                             }
                             let html = '';
                             let subjIdx = 0;
+                            let totalSubjScore = 0;
                             const totalQs = Math.max(qs.length, Object.keys(ans).length);
                             for (let i = 0; i < totalQs; i++) {
                                 const q = qs[i] || {};
-                                // 只展示主观题（问答题/实操题），客观题已自动评分无需人工处理
-                                if (q.questionType !== 'essay' && q.questionType !== 'practice') {
-                                    continue;
-                                }
+                                if (q.questionType !== 'essay' && q.questionType !== 'practice') continue;
                                 subjIdx++;
+                                totalSubjScore += (q.score || 0);
                                 const a = ans[i] || ans[String(i)] || {};
                                 const typeLabel = {'essay':'问答题','practice':'实操题'}[q.questionType] || '主观题';
                                 html += '<div style="margin-bottom:10px;padding:10px 12px;background:#ffffff;border-radius:8px;border-left:3px solid #7a9ec9">';
                                 html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
                                 html += '<span style="font-size:12px;font-weight:700;color:#1e2d52">主观题 ' + subjIdx + '（原题第' + (i + 1) + '题）</span>';
-                                html += '<span style="font-size:11px;padding:2px 8px;background:#e3ecf7;color:#2c3e6b;border-radius:10px">' + typeLabel + ' · ' + q.score + '分</span>';
+                                html += '<span style="font-size:11px;padding:2px 8px;background:#e3ecf7;color:#2c3e6b;border-radius:10px">' + typeLabel + ' · 满分' + q.score + '分</span>';
                                 html += '</div>';
                                 if (q.questionText) {
                                     html += '<div style="font-size:14px;color:#1e2d52;margin-bottom:6px;font-weight:500;line-height:1.6">' + q.questionText + '</div>';
@@ -625,20 +624,25 @@ PageRenderers['adm-scoring'] = async function(c) {
                                 if (a.file) {
                                     html += '<div style="margin-top:4px;font-size:12px;color:#2c3e6b;font-weight:500">📎 附件：' + a.file + '</div>';
                                 }
+                                html += '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">';
+                                html += '<span style="font-size:13px;color:#5a6b82;flex-shrink:0">本题评分：</span>';
+                                html += '<input type="number" min="0" max="' + q.score + '" class="q-input" style="width:70px;padding:6px 10px" placeholder="0-' + q.score + '" id="qscore_${r.id}_' + i + '">';
+                                html += '<span style="font-size:12px;color:#5a6b82">/ ' + q.score + '分</span>';
+                                html += '</div>';
                                 html += '</div>';
                             }
                             if (subjIdx === 0) {
                                 return '<div style="color:#5a6b82;font-size:13px">本次考试无主观题，客观题已自动评分完成。</div>';
                             }
+                            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#eef6ff;border-radius:8px;margin-top:4px">';
+                            html += '<span style="font-size:13px;font-weight:600;color:#2c3e6b">主观题满分合计：' + totalSubjScore + '分</span>';
+                            html += '<span style="font-size:13px;color:#5a6b82">客观题：' + (r.autoScore || 0) + '分 + 主观题评分 = 总分</span>';
+                            html += '</div>';
                             return html;
                         })()}
                     </div>
                 </div>
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                    <span style="font-size:14px;flex-shrink:0">主观题评分：</span>
-                    <input type="number" min="0" max="100" class="q-input" style="width:80px;padding:8px 12px" placeholder="0-100" id="score_${r.id}">
-                    <span style="font-size:13px;color:#5a6b82">分</span>
-                    <span style="font-size:13px;color:#5a6b82;margin-left:8px">客观题：${r.autoScore || 0}分 + 主观题 = 总分</span>
                     <button class="btn btn-success btn-sm" style="margin-left:auto" onclick="doSubmitScore('${r.id}')">提交评分</button>
                 </div>
             </div>
@@ -652,9 +656,9 @@ PageRenderers['adm-scoring'] = async function(c) {
                 <div class="label">待评分试卷</div>
                 <div class="value">${pendingReviews.length}</div>
             </div>
-            <div class="stat-card">
-                <div class="label">已评分</div>
-                <div class="value">${(getStore('exams') || []).filter(e => e.status === 'passed' || e.status === 'failed').length}</div>
+            <div class="stat-card" style="cursor:pointer" onclick="showGradedHistory()">
+                <div class="label">已评分 <span style="font-size:11px;color:#7a9ec9">点击查看</span></div>
+                <div class="value" style="color:var(--primary)">${(getStore('exams') || []).filter(e => e.status === 'passed' || e.status === 'failed').length}</div>
             </div>
         </div>
         ${reviewHtml}
@@ -662,26 +666,61 @@ PageRenderers['adm-scoring'] = async function(c) {
 };
 
 async function doSubmitScore(examId) {
-    const inp = document.getElementById('score_' + examId);
-    if (!inp || !inp.value) {
-        showToast('请输入评分', 'danger');
+    // 收集每道主观题的评分
+    const inputs = document.querySelectorAll('[id^="qscore_' + examId + '_"]');
+    if (inputs.length === 0) {
+        showToast('未找到评分输入框', 'danger');
         return;
     }
-    const score = parseInt(inp.value);
-    if (isNaN(score) || score < 0 || score > 100) {
-        showToast('请输入0-100的有效分数', 'danger');
+    const scores = {};
+    let allFilled = true;
+    let totalManual = 0;
+    inputs.forEach(inp => {
+        const qIdx = inp.id.replace('qscore_' + examId + '_', '');
+        if (!inp.value || inp.value === '') {
+            allFilled = false;
+            return;
+        }
+        const s = parseInt(inp.value);
+        if (isNaN(s) || s < 0) {
+            allFilled = false;
+            return;
+        }
+        scores[qIdx] = s;
+        totalManual += s;
+    });
+    if (!allFilled) {
+        showToast('请为每道主观题填写评分', 'danger');
         return;
     }
 
-    await scoreExam(examId, { manual: score }, AppState.currentUser.id);
-    showToast('评分已提交：' + score + '分', 'success');
+    await scoreExam(examId, scores, AppState.currentUser.id);
+    showToast('评分已提交，主观题合计' + totalManual + '分', 'success');
 
+    // 移除卡片并刷新侧边栏徽标
     const card = document.getElementById('review_' + examId);
-    if (card) {
-        card.style.borderColor = 'var(--success)';
-        card.querySelector('.badge').className = 'badge badge-success';
-        card.querySelector('.badge').textContent = '已评分';
-        inp.disabled = true;
+    if (card) card.remove();
+    if (typeof refreshScoringBadge === 'function') refreshScoringBadge();
+
+    // 如果没有待评分了，刷新页面显示空状态
+    const remaining = document.querySelectorAll('[id^="review_"]');
+    if (remaining.length === 0) {
+        const container = card ? card.parentElement : document.querySelector('.stats-row');
+        if (container) {
+            const emptyHtml = '<div class="card" style="text-align:center;padding:48px"><div style="font-size:48px;margin-bottom:16px">✅</div><p style="color:var(--text-secondary)">暂无待评分试卷</p></div>';
+            // 找到评分管理内容区域
+            const contentArea = document.getElementById('mainContent') || container;
+            if (!contentArea.querySelector('.card[style*="text-align:center"]')) {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = emptyHtml;
+                contentArea.appendChild(wrapper.firstChild);
+            }
+        }
+        // 更新统计数字
+        const statValues = document.querySelectorAll('.stat-card .value');
+        if (statValues[0]) statValues[0].textContent = '0';
+        const gradedCount = (getStore('exams') || []).filter(e => e.status === 'passed' || e.status === 'failed').length;
+        if (statValues[1]) statValues[1].textContent = gradedCount;
     }
 }
 
@@ -979,4 +1018,51 @@ function saveChapterConfig() {
         console.error('保存配置失败', e);
     }
     showToast('配置已保存', 'success');
+}
+
+// 刷新侧边栏评分徽标
+async function refreshScoringBadge() {
+    const badge = document.getElementById('scoringBadge');
+    if (badge) {
+        const pending = await getPendingReviews();
+        badge.textContent = pending.length;
+        badge.style.display = pending.length > 0 ? 'inline' : 'none';
+    }
+}
+
+// 显示已评分历史
+function showGradedHistory() {
+    const exams = (getStore('exams') || []).filter(e => e.status === 'passed' || e.status === 'failed');
+    const users = getStore('users') || [];
+    const chapters = getStore('chapterConfig') || [];
+
+    let rows = exams.map(e => {
+        const u = users.find(u => u.id === e.userId);
+        const ch = chapters.find(c => c.id === e.chapterId);
+        const statusBadge = e.status === 'passed'
+            ? '<span style="padding:2px 8px;border-radius:10px;background:#d1fae5;color:#065f46;font-size:11px;font-weight:600">通过</span>'
+            : '<span style="padding:2px 8px;border-radius:10px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:600">未通过</span>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#f8f9fc;border-radius:10px;margin-bottom:6px">' +
+            '<div><span style="font-size:14px;font-weight:600;color:#1e2d52">' + (u ? u.displayName : '未知') + '</span>' +
+            ' <span style="font-size:13px;color:#5a6b82;margin-left:8px">' + (ch ? ch.title : '第' + e.chapterId + '章') + '</span></div>' +
+            '<div style="display:flex;gap:12px;align-items:center">' +
+            '<span style="font-size:13px;color:#5a6b82">客观' + (e.autoScore || 0) + ' + 主观' + (e.manualScore || 0) + ' = <strong style="color:#1e2d52">' + e.totalScore + '</strong>分</span>' +
+            statusBadge +
+            '</div></div>';
+    }).join('');
+
+    if (rows === '') rows = '<div style="text-align:center;padding:32px;color:#5a6b82">暂无评分记录</div>';
+
+    const existing = document.getElementById('gradedHistoryModal');
+    if (existing) existing.remove();
+
+    const modal = '<div id="gradedHistoryModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(30,45,82,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)this.remove()">' +
+        '<div style="background:white;border-radius:16px;max-width:680px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)">' +
+        '<h3 style="margin:0;font-size:18px"> 已评分记录（共' + exams.length + '份）</h3>' +
+        '<button onclick="document.getElementById(\'gradedHistoryModal\').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted)">✕</button>' +
+        '</div>' +
+        '<div style="padding:24px">' + rows + '</div></div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', modal);
 }
