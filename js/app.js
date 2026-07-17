@@ -23,16 +23,142 @@ async function initApp() {
     initLocalData();
 
     // 尝试初始化Supabase
-    initSupabase();
+    const supabaseReady = initSupabase();
+
+    // 如果 Supabase 就绪，自动检查并同步数据
+    if (supabaseReady) {
+        try {
+            await _autoSyncToSupabase();
+        } catch (e) {
+            console.warn('Supabase 自动同步失败，使用本地模式:', e.message);
+        }
+    }
 
     // 检查登录状态
     const savedUser = getStore('currentUser');
     if (savedUser) {
+        // 尝试验证云端用户是否仍然有效
+        if (supabaseReady) {
+            const { data } = await supabaseClient
+                .from('profiles')
+                .select('id, is_active')
+                .eq('username', savedUser.username)
+                .single();
+            if (!data || !data.is_active) {
+                // 用户在云端不存在或被停用，清除登录状态
+                setStore('currentUser', null);
+                AppState.currentUser = null;
+                showLogin();
+                return;
+            }
+            // 更新本地缓存的 user ID 为云端 ID
+            savedUser.id = data.id;
+            setStore('currentUser', savedUser);
+        }
         AppState.currentUser = savedUser;
         showApp();
     } else {
         showLogin();
     }
+}
+
+/**
+ * 自动同步：首次使用时将本地演示数据迁移到 Supabase
+ */
+async function _autoSyncToSupabase() {
+    if (!isSupabaseReady()) return;
+
+    // 检查云端是否已有用户
+    const { data: existingProfiles } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .limit(1);
+
+    if (existingProfiles && existingProfiles.length > 0) {
+        // 已有数据，无需初始化
+        return;
+    }
+
+    console.log('Supabase 数据库为空，开始初始化演示数据...');
+
+    // 插入演示用户
+    const localUsers = getStore('users') || [];
+    for (const user of localUsers) {
+        const passwordHash = await hashPassword(user.password);
+        await supabaseClient
+            .from('profiles')
+            .upsert({
+                username: user.username,
+                password_hash: passwordHash,
+                display_name: user.displayName,
+                avatar_char: user.avatarChar,
+                role: user.role,
+                group_name: user.group,
+                is_active: user.isActive !== false,
+                created_at: user.createdAt || new Date().toISOString()
+            }, { onConflict: 'username' });
+    }
+
+    // 插入演示学习进度
+    const localProgress = getStore('progress') || [];
+    for (const p of localProgress) {
+        const localUser = localUsers.find(u => u.id === p.userId);
+        if (!localUser) continue;
+
+        const { data: profileData } = await supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('username', localUser.username)
+            .single();
+
+        if (profileData) {
+            await supabaseClient
+                .from('learning_progress')
+                .upsert({
+                    user_id: profileData.id,
+                    chapter_id: p.chapterId,
+                    status: p.status,
+                    progress_pct: p.progressPct || 0,
+                    started_at: p.startedAt || null,
+                    completed_at: p.completedAt || null
+                }, { onConflict: 'user_id,chapter_id' });
+        }
+    }
+
+    // 插入演示考试记录
+    const localExams = getStore('exams') || [];
+    for (const exam of localExams) {
+        const localUser = localUsers.find(u => u.id === exam.userId);
+        if (!localUser) continue;
+
+        const { data: profileData } = await supabaseClient
+            .from('profiles')
+            .select('id')
+            .eq('username', localUser.username)
+            .single();
+
+        if (profileData) {
+            await supabaseClient
+                .from('exams')
+                .insert({
+                    user_id: profileData.id,
+                    chapter_id: exam.chapterId,
+                    status: exam.status,
+                    questions_snapshot: exam.questionsSnapshot || {},
+                    answers: exam.answers || null,
+                    auto_score: exam.autoScore || 0,
+                    manual_score: exam.manualScore || 0,
+                    total_score: exam.totalScore || 0,
+                    time_limit: exam.timeLimit || null,
+                    screen_switch_count: exam.screenSwitchCount || 0,
+                    start_time: exam.startTime,
+                    submit_time: exam.submitTime || null,
+                    scored_at: exam.scoredAt || null
+                });
+        }
+    }
+
+    console.log('Supabase 演示数据初始化完成');
 }
 
 // ===== 登录/登出 =====
@@ -58,6 +184,19 @@ async function doLogin() {
     if (result.success) {
         AppState.currentUser = result.user;
         setStore('currentUser', result.user);
+
+        // 同时迁移本地进度到云端（如果云端没有该用户的进度数据）
+        if (isSupabaseReady()) {
+            try {
+                const localProgress = getLocalProgress(result.user.id);
+                if (localProgress.length > 0) {
+                    await _migrateProgressToCloud(result.user.id, localProgress);
+                }
+            } catch (e) {
+                console.warn('进度迁移跳过:', e.message);
+            }
+        }
+
         showApp();
     } else {
         errorEl.textContent = result.message;

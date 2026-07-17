@@ -6,8 +6,8 @@
 // ===== Supabase 配置 =====
 // 部署时需要替换为实际的Supabase项目URL和 anon key
 const SUPABASE_CONFIG = {
-    url: 'https://YOUR_PROJECT_ID.supabase.co',
-    anonKey: 'YOUR_ANON_KEY'
+    url: 'https://ovrvfhyvfeubamxnkqcq.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92cnZmaHl2ZmV1YmFteG5rcWNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyNjY0ODIsImV4cCI6MjA5OTg0MjQ4Mn0.22M7jil7GqUkMXnOH94hqEJyfh4e68Fu611FwDUI-IY'
 };
 
 // ===== 全局常量 =====

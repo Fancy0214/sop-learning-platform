@@ -481,6 +481,11 @@ function saveChapterContent(chapterId, chapterTitle) {
     allEditedContents[chapterId] = newContent;
     localStorage.setItem('sop_editedContents', JSON.stringify(allEditedContents));
 
+    // 同步保存到 Supabase 云端
+    if (typeof saveLearningContent === 'function') {
+        saveLearningContent(chapterId, chapterTitle, newContent, AppState.currentUser ? AppState.currentUser.id : null);
+    }
+
     showToast('第' + chapterId + '章学习要点已保存', 'success');
 
     // 关闭弹窗
