@@ -335,6 +335,24 @@ PageRenderers['emp-report'] = async function(c) {
 };
 
 // 错题解析弹窗
+// 清理文本中的 markdown 标记符
+function sanitizeMarkdownText(text) {
+    if (!text) return text;
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '$1')   // **bold** → bold
+        .replace(/\*(.*?)\*/g, '$1')        // *italic* → italic
+        .replace(/`([^`]+)`/g, '$1')        // `code` → code
+        .replace(/~~(.*?)~~/g, '$1')        // ~~strikethrough~~ → strikethrough
+        .replace(/\|/g, '')                  // pipe → remove
+        .replace(/^#{1,6}\s+/gm, '')        // heading # → remove
+        .replace(/^\s*[-*+]\s+/gm, '')      // list - → remove
+        .replace(/^\s*\d+\.\s+/gm, '')      // list 1. → remove
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // [text](url) → text
+        .replace(/!\[([^\]]*)\]\([^\)]+\)/g, '$1') // ![alt](url) → alt
+        .replace(/\n{2,}/g, '<br>')          // double newline → line break
+        .trim();
+}
+
 async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
     const userId = AppState.currentUser.id;
     const allExams = (getStore('exams') || []).filter(e => e.userId === userId && e.chapterId === chapterId);
@@ -448,7 +466,7 @@ async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
                     <span style="font-size:12px;font-weight:700;color:#1e2d52">错题 ${wi + 1} · ${typeLabels[q.questionType] || q.questionType} · ${q.score}分</span>
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${isRight ? '#d1fae5' : '#fee2e2'};color:${isRight ? '#065f46' : '#991b1b'};font-weight:600">${isRight ? '✓ 正确' : '✗ 错误'}</span>
                 </div>
-                <div style="font-size:14px;color:#1e2d52;margin-bottom:10px;font-weight:500;line-height:1.6">${q.questionText}</div>
+                <div style="font-size:14px;color:#1e2d52;margin-bottom:10px;font-weight:500;line-height:1.6">${sanitizeMarkdownText(q.questionText)}</div>
                 ${q.options && q.options.length ? '<div style="margin-bottom:8px">' + q.options.map((opt, oi) => {
                     const isSelected = (function() {
                         if (q.questionType === 'choice_multi') {
@@ -468,7 +486,7 @@ async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
                     else if (isSelected && !isCorrect) style += 'background:#fee2e2;border:1px solid #ef4444;color:#991b1b;font-weight:600;text-decoration:line-through';
                     else if (!isSelected && isCorrect) style += 'background:#d1fae5;border:1px solid #10b981;color:#065f46;font-weight:600';
                     else style += 'background:#f0f0f0;border:1px solid #e0e0e0;color:#666';
-                    return '<div style="' + style + '">' + String.fromCharCode(65 + oi) + '. ' + opt.text + (isSelected && !isCorrect ? ' ✗' : '') + (isSelected && isCorrect ? ' ✓' : '') + (!isSelected && isCorrect ? ' ← 正确答案' : '') + '</div>';
+                    return '<div style="' + style + '">' + String.fromCharCode(65 + oi) + '. ' + sanitizeMarkdownText(opt.text) + (isSelected && !isCorrect ? ' ✗' : '') + (isSelected && isCorrect ? ' ✓' : '') + (!isSelected && isCorrect ? ' ← 正确答案' : '') + '</div>';
                 }).join('') + '</div>' : ''}
                 ${q.questionType === 'fill_blank' ? '<div style="margin-bottom:6px"><span style="font-size:12px;color:#ef4444;font-weight:600">你的答案：</span><span style="font-size:14px;color:#1e2d52">' + (item.userAnswerText || '(未作答)') + '</span></div><div><span style="font-size:12px;color:#10b981;font-weight:600">正确答案：</span><span style="font-size:14px;color:#1e2d52">' + item.correctAnswerText + '</span></div>' : ''}
             </div>`;
@@ -485,10 +503,10 @@ async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
                 const q = item.q;
                 return `<div style="margin-bottom:14px;padding:12px;background:#f8f9fc;border-radius:10px">
                     <div style="font-size:12px;font-weight:700;color:#1e2d52;margin-bottom:6px">主观题 ${si + 1} · ${typeLabels[q.questionType] || q.questionType} · ${q.score}分</div>
-                    <div style="font-size:14px;color:#1e2d52;margin-bottom:8px;font-weight:500;line-height:1.6">${q.questionText}</div>
+                    <div style="font-size:14px;color:#1e2d52;margin-bottom:8px;font-weight:500;line-height:1.6">${sanitizeMarkdownText(q.questionText)}</div>
                     <div style="font-size:13px;color:#5a6b82;margin-bottom:4px">你的回答：</div>
-                    <div style="padding:8px 12px;background:#fff;border-radius:6px;font-size:14px;color:#1e2d52;line-height:1.7;white-space:pre-wrap;min-height:30px;border:1px solid #d0d7e2">${item.userAnswerText || '(未作答)'}</div>
-                    ${item.correctAnswerText ? '<div style="font-size:13px;color:#5a6b82;margin-top:8px;margin-bottom:4px">参考要点：</div><div style="padding:6px 12px;background:#eef6ff;border-radius:6px;font-size:13px;color:#2c3e6b;line-height:1.6">' + item.correctAnswerText + '</div>' : ''}
+                    <div style="padding:8px 12px;background:#fff;border-radius:6px;font-size:14px;color:#1e2d52;line-height:1.7;white-space:pre-wrap;min-height:30px;border:1px solid #d0d7e2">${sanitizeMarkdownText(item.userAnswerText) || '(未作答)'}</div>
+                    ${item.correctAnswerText ? '<div style="font-size:13px;color:#5a6b82;margin-top:8px;margin-bottom:4px">参考要点：</div><div style="padding:6px 12px;background:#eef6ff;border-radius:6px;font-size:13px;color:#2c3e6b;line-height:1.6">' + sanitizeMarkdownText(item.correctAnswerText) + '</div>' : ''}
                 </div>`;
             }).join('')}
         </div>`;
