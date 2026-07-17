@@ -270,14 +270,28 @@ PageRenderers['emp-report'] = async function(c) {
         const exam = allExams.find(e => e.chapterId === ch.id);
         const status = statuses.find(s => s.id === ch.id);
         let badge = '';
-        if (exam && exam.totalScore) badge = `<span class="badge badge-success">通过 ${exam.totalScore}分</span>`;
+        let clickable = false;
+        if (exam && exam.totalScore) {
+            badge = `<span class="badge badge-success">通过 ${exam.totalScore}分</span>`;
+            clickable = true;
+        }
+        else if (exam && exam.status === 'failed') {
+            badge = `<span class="badge badge-danger">未通过 ${exam.totalScore}分</span>`;
+            clickable = true;
+        }
         else if (exam && exam.status === 'submitted') badge = `<span class="badge badge-warning">待评分</span>`;
         else if (status && status.isCompleted) badge = `<span class="badge badge-primary">已学习</span>`;
         else badge = `<span class="badge badge-muted">未开始</span>`;
 
-        chapterDetails += `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg-tertiary);border-radius:10px">
-            <span style="font-size:14px">${ch.title}</span>${badge}
-        </div>`;
+        if (clickable) {
+            chapterDetails += `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg-tertiary);border-radius:10px;cursor:pointer;transition:background .2s" onmouseover="this.style.background='#dce4f0'" onmouseout="this.style.background='var(--bg-tertiary)'" onclick="showWrongAnswerAnalysis(${ch.id},'${ch.title.replace(/'/g,"\\'")}')">
+                <span style="font-size:14px">${ch.title} <span style="font-size:11px;color:#7a9ec9;margin-left:4px"> 查看解析</span></span>${badge}
+            </div>`;
+        } else {
+            chapterDetails += `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg-tertiary);border-radius:10px">
+                <span style="font-size:14px">${ch.title}</span>${badge}
+            </div>`;
+        }
     }
 
     const allPassed = statuses.every(s => s.isCompleted);
@@ -319,3 +333,200 @@ PageRenderers['emp-report'] = async function(c) {
         </div>
     `;
 };
+
+// 错题解析弹窗
+async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
+    const userId = AppState.currentUser.id;
+    const allExams = (getStore('exams') || []).filter(e => e.userId === userId && e.chapterId === chapterId);
+    if (allExams.length === 0) return;
+
+    // 取最近一次有完整答题数据的考试
+    let exam = allExams.sort((a, b) => new Date(b.submitTime || 0) - new Date(a.submitTime || 0))[0];
+
+    // 如果没有 questionsSnapshot，无法分析
+    if (!exam.questionsSnapshot || exam.questionsSnapshot.length === 0) {
+        showToast('该考试暂无答题记录，无法查看解析', 'warning');
+        return;
+    }
+
+    const questions = exam.questionsSnapshot;
+    const answers = exam.answers || {};
+    const typeLabels = {choice_single:'单选题',choice_multi:'多选题',true_false:'判断题',fill_blank:'填空题',essay:'问答题',practice:'实操题'};
+
+    // 找出答错的客观题
+    let wrongItems = [];
+    let allItems = [];
+
+    questions.forEach((q, i) => {
+        const ans = answers[i] || answers[String(i)] || {};
+        const isObjective = ['choice_single','choice_multi','true_false','fill_blank'].includes(q.questionType);
+
+        if (isObjective) {
+            let isCorrect = false;
+
+            if (q.questionType === 'choice_single' || q.questionType === 'true_false') {
+                // 用户答案可能是数字(实际考试)或字母(演示数据)
+                let userIdx = ans.selected;
+                let correctIdx = q.answer.index;
+                // 统一转为数字比较
+                if (typeof userIdx === 'string' && userIdx.length === 1 && userIdx >= 'A' && userIdx <= 'Z') {
+                    userIdx = userIdx.charCodeAt(0) - 65;
+                }
+                isCorrect = (parseInt(userIdx) === correctIdx);
+            } else if (q.questionType === 'choice_multi') {
+                let userIndices = Array.isArray(ans.selected) ? ans.selected : [];
+                let correctIndices = q.answer.indices || [];
+                // 统一转为数字数组
+                userIndices = userIndices.map(v => typeof v === 'string' && v.length === 1 && v >= 'A' && v <= 'Z' ? v.charCodeAt(0) - 65 : parseInt(v)).filter(v => !isNaN(v)).sort((a,b) => a-b);
+                correctIndices = correctIndices.map(v => parseInt(v)).sort((a,b) => a-b);
+                isCorrect = userIndices.length === correctIndices.length && userIndices.every((v, idx) => v === correctIndices[idx]);
+            } else if (q.questionType === 'fill_blank') {
+                let userText = (ans.text || '').trim().toLowerCase();
+                let correctText = (q.answer.text || '').trim().toLowerCase();
+                isCorrect = (userText === correctText);
+            }
+
+            const userAnswerText = (function() {
+                if (q.questionType === 'choice_single' || q.questionType === 'true_false') {
+                    let idx = ans.selected;
+                    if (typeof idx === 'string' && idx.length === 1 && idx >= 'A' && idx <= 'Z') {
+                        return String.fromCharCode(65 + idx.charCodeAt(0) - 65);
+                    }
+                    return q.options && q.options[parseInt(idx)] ? String.fromCharCode(65 + parseInt(idx)) + '. ' + q.options[parseInt(idx)].text : '(未作答)';
+                } else if (q.questionType === 'choice_multi') {
+                    let indices = Array.isArray(ans.selected) ? ans.selected : [];
+                    if (indices.length === 0) return '(未作答)';
+                    return indices.map(v => {
+                        let numIdx = typeof v === 'string' && v.length === 1 && v >= 'A' && v <= 'Z' ? v.charCodeAt(0) - 65 : parseInt(v);
+                        return String.fromCharCode(65 + numIdx);
+                    }).join('、');
+                } else if (q.questionType === 'fill_blank') {
+                    return ans.text || '(未作答)';
+                }
+            })();
+
+            const correctAnswerText = (function() {
+                if (q.questionType === 'choice_single' || q.questionType === 'true_false') {
+                    return String.fromCharCode(65 + q.answer.index) + '. ' + (q.options[q.answer.index]?.text || '');
+                } else if (q.questionType === 'choice_multi') {
+                    return (q.answer.indices || []).map(idx => String.fromCharCode(65 + idx) + '. ' + (q.options[idx]?.text || '')).join('；');
+                } else if (q.questionType === 'fill_blank') {
+                    return q.answer.text || '';
+                }
+            })();
+
+            allItems.push({ q, ans, isCorrect, userAnswerText, correctAnswerText, index: i });
+            if (!isCorrect) wrongItems.push({ q, ans, userAnswerText, correctAnswerText, index: i });
+        } else {
+            // 主观题也展示，但不标记对错
+            const userText = ans.text || '(未作答)';
+            const refText = (function() {
+                if (q.answer.keywords) return '关键词：' + q.answer.keywords.join('、');
+                if (q.answer.requirements) return '要求：' + q.answer.requirements;
+                return '';
+            })();
+            allItems.push({ q, ans, isObjective: false, userAnswerText: userText, correctAnswerText: refText, index: i });
+        }
+    });
+
+    // 弹窗内容
+    let wrongHtml = '';
+    if (wrongItems.length === 0 && allItems.filter(it => it.isObjective).length > 0) {
+        wrongHtml = `<div style="text-align:center;padding:32px">
+            <div style="font-size:40px;margin-bottom:8px"></div>
+            <div style="font-size:16px;font-weight:600;color:var(--success)">客观题全对！</div>
+            <div style="font-size:13px;color:#5a6b82;margin-top:4px">继续保持，你太棒了！</div>
+        </div>`;
+    } else if (wrongItems.length === 0) {
+        wrongHtml = `<div style="text-align:center;padding:32px;color:#5a6b82">暂无客观题答题数据</div>`;
+    } else {
+        wrongHtml = wrongItems.map((item, wi) => {
+            const q = item.q;
+            const isRight = item.isCorrect;
+            return `<div style="margin-bottom:16px;padding:14px;background:#f8f9fc;border-radius:10px;border-left:4px solid ${isRight ? '#10b981' : '#ef4444'}">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                    <span style="font-size:12px;font-weight:700;color:#1e2d52">错题 ${wi + 1} · ${typeLabels[q.questionType] || q.questionType} · ${q.score}分</span>
+                    <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${isRight ? '#d1fae5' : '#fee2e2'};color:${isRight ? '#065f46' : '#991b1b'};font-weight:600">${isRight ? '✓ 正确' : '✗ 错误'}</span>
+                </div>
+                <div style="font-size:14px;color:#1e2d52;margin-bottom:10px;font-weight:500;line-height:1.6">${q.questionText}</div>
+                ${q.options && q.options.length ? '<div style="margin-bottom:8px">' + q.options.map((opt, oi) => {
+                    const isSelected = (function() {
+                        if (q.questionType === 'choice_multi') {
+                            let indices = Array.isArray(item.ans.selected) ? item.ans.selected : [];
+                            return indices.map(v => typeof v === 'string' && v.length === 1 && v >= 'A' && v <= 'Z' ? v.charCodeAt(0) - 65 : parseInt(v)).includes(oi);
+                        }
+                        let idx = item.ans.selected;
+                        if (typeof idx === 'string' && idx.length === 1 && idx >= 'A' && idx <= 'Z') idx = idx.charCodeAt(0) - 65;
+                        return parseInt(idx) === oi;
+                    })();
+                    const isCorrect = (function() {
+                        if (q.questionType === 'choice_multi') return (q.answer.indices || []).includes(oi);
+                        return q.answer.index === oi;
+                    })();
+                    let style = 'padding:4px 10px;margin:2px 0;border-radius:6px;font-size:13px;';
+                    if (isSelected && isCorrect) style += 'background:#d1fae5;border:1px solid #10b981;color:#065f46;font-weight:600';
+                    else if (isSelected && !isCorrect) style += 'background:#fee2e2;border:1px solid #ef4444;color:#991b1b;font-weight:600;text-decoration:line-through';
+                    else if (!isSelected && isCorrect) style += 'background:#d1fae5;border:1px solid #10b981;color:#065f46;font-weight:600';
+                    else style += 'background:#f0f0f0;border:1px solid #e0e0e0;color:#666';
+                    return '<div style="' + style + '">' + String.fromCharCode(65 + oi) + '. ' + opt.text + (isSelected && !isCorrect ? ' ✗' : '') + (isSelected && isCorrect ? ' ✓' : '') + (!isSelected && isCorrect ? ' ← 正确答案' : '') + '</div>';
+                }).join('') + '</div>' : ''}
+                ${q.questionType === 'fill_blank' ? '<div style="margin-bottom:6px"><span style="font-size:12px;color:#ef4444;font-weight:600">你的答案：</span><span style="font-size:14px;color:#1e2d52">' + (item.userAnswerText || '(未作答)') + '</span></div><div><span style="font-size:12px;color:#10b981;font-weight:600">正确答案：</span><span style="font-size:14px;color:#1e2d52">' + item.correctAnswerText + '</span></div>' : ''}
+            </div>`;
+        }).join('');
+    }
+
+    // 主观题部分
+    const subjItems = allItems.filter(it => !it.isObjective);
+    let subjHtml = '';
+    if (subjItems.length > 0) {
+        subjHtml = `<div style="margin-top:20px;padding-top:16px;border-top:1px dashed #d0d7e2">
+            <div style="font-size:14px;font-weight:700;color:#1e2d52;margin-bottom:12px">📝 主观题（需人工评分，以下为参考答案）</div>
+            ${subjItems.map((item, si) => {
+                const q = item.q;
+                return `<div style="margin-bottom:14px;padding:12px;background:#f8f9fc;border-radius:10px">
+                    <div style="font-size:12px;font-weight:700;color:#1e2d52;margin-bottom:6px">主观题 ${si + 1} · ${typeLabels[q.questionType] || q.questionType} · ${q.score}分</div>
+                    <div style="font-size:14px;color:#1e2d52;margin-bottom:8px;font-weight:500;line-height:1.6">${q.questionText}</div>
+                    <div style="font-size:13px;color:#5a6b82;margin-bottom:4px">你的回答：</div>
+                    <div style="padding:8px 12px;background:#fff;border-radius:6px;font-size:14px;color:#1e2d52;line-height:1.7;white-space:pre-wrap;min-height:30px;border:1px solid #d0d7e2">${item.userAnswerText || '(未作答)'}</div>
+                    ${item.correctAnswerText ? '<div style="font-size:13px;color:#5a6b82;margin-top:8px;margin-bottom:4px">参考要点：</div><div style="padding:6px 12px;background:#eef6ff;border-radius:6px;font-size:13px;color:#2c3e6b;line-height:1.6">' + item.correctAnswerText + '</div>' : ''}
+                </div>`;
+            }).join('')}
+        </div>`;
+    }
+
+    const totalObj = allItems.filter(it => it.isObjective).length;
+    const wrongObjCount = wrongItems.length;
+    const correctObjCount = totalObj - wrongObjCount;
+
+    let existing = document.getElementById('wrongAnswerModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `<div id="wrongAnswerModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(30,45,82,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px" onclick="if(event.target===this)this.remove()">
+        <div style="background:white;border-radius:16px;max-width:680px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)">
+                <h3 style="margin:0;font-size:18px">📋 第${chapterId}章 ${chapterTitle} - 答题解析</h3>
+                <button onclick="document.getElementById('wrongAnswerModal').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted)">✕</button>
+            </div>
+            <div style="padding:24px">
+                <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:120px;background:var(--bg-tertiary);border-radius:12px;padding:14px;text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:var(--primary)">${totalObj}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">客观题总数</div>
+                    </div>
+                    <div style="flex:1;min-width:120px;background:#d1fae5;border-radius:12px;padding:14px;text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:#065f46">${correctObjCount}</div>
+                        <div style="font-size:12px;color:#065f46;margin-top:2px">答对</div>
+                    </div>
+                    <div style="flex:1;min-width:120px;background:#fee2e2;border-radius:12px;padding:14px;text-align:center">
+                        <div style="font-size:24px;font-weight:700;color:#991b1b">${wrongObjCount}</div>
+                        <div style="font-size:12px;color:#991b1b;margin-top:2px">答错</div>
+                    </div>
+                </div>
+                ${wrongHtml}
+                ${subjHtml}
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
