@@ -5,40 +5,32 @@
 
 // ===== 初始化本地数据 =====
 function initLocalData() {
-    // 演示账号硬编码保障：无论 localStorage 状态如何，确保默认用户始终存在
-    const DEMO_USERS = [
-        { id: 'u_admin', username: 'fancy', password: 'admin123', displayName: '妮妮（Fancy）', avatarChar: '妮', role: 'admin', group: null, isActive: true },
-        { id: 'u_leader1', username: 'wanglei', password: '123456', displayName: '王磊', avatarChar: '磊', role: 'leader', group: '销售组', isActive: true },
-        { id: 'u_leader2', username: 'zhaomin', password: '123456', displayName: '赵敏', avatarChar: '敏', role: 'leader', group: '置换组', isActive: true },
-        { id: 'u_emp1', username: 'zhangsan', password: '123456', displayName: '张三', avatarChar: '张', role: 'employee', group: '销售组', isActive: true },
-        { id: 'u_emp2', username: 'lisi', password: '123456', displayName: '李四', avatarChar: '李', role: 'employee', group: '销售组', isActive: true },
-        { id: 'u_emp3', username: 'wangwu', password: '123456', displayName: '王五', avatarChar: '王', role: 'employee', group: '置换组', isActive: true },
-        { id: 'u_emp4', username: 'xiaohong', password: '123456', displayName: '小红', avatarChar: '红', role: 'employee', group: '置换组', isActive: true },
-        { id: 'u_emp5', username: 'xiaoming', password: '123456', displayName: '小明', avatarChar: '明', role: 'employee', group: '销售组', isActive: true },
-    ];
-    const existingUsers = getStore('users') || [];
-    let usersChanged = false;
-    for (const demo of DEMO_USERS) {
-        if (!existingUsers.find(u => u.username === demo.username)) {
-            existingUsers.push({ ...demo, createdAt: new Date().toISOString() });
-            usersChanged = true;
-        }
-    }
-    if (usersChanged) setStore('users', existingUsers);
+    // Supabase 模式下：只确保管理员账号存在，不同步其他演示账号
+    // localStorage 模式下：保留所有演示数据
+    const useSupabase = isSupabaseReady();
 
     if (!getStore('initialized')) {
-        // 初始化用户
-        const users = [
-            { id: 'u_admin', username: 'fancy', password: 'admin123', displayName: '妮妮（Fancy）', avatarChar: '妮', role: 'admin', group: null, isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_leader1', username: 'wanglei', password: '123456', displayName: '王磊', avatarChar: '磊', role: 'leader', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_leader2', username: 'zhaomin', password: '123456', displayName: '赵敏', avatarChar: '敏', role: 'leader', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_emp1', username: 'zhangsan', password: '123456', displayName: '张三', avatarChar: '张', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_emp2', username: 'lisi', password: '123456', displayName: '李四', avatarChar: '李', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_emp3', username: 'wangwu', password: '123456', displayName: '王五', avatarChar: '王', role: 'employee', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_emp4', username: 'xiaohong', password: '123456', displayName: '小红', avatarChar: '红', role: 'employee', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
-            { id: 'u_emp5', username: 'xiaoming', password: '123456', displayName: '小明', avatarChar: '明', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
-        ];
-        setStore('users', users);
+        // 首次初始化
+        if (useSupabase) {
+            // Supabase 模式：只在 localStorage 存管理员账号作为 fallback
+            const users = [
+                { id: 'u_admin', username: 'fancy', password: 'admin123', displayName: '妮妮（Fancy）', avatarChar: '妮', role: 'admin', group: null, isActive: true, createdAt: new Date().toISOString() },
+            ];
+            setStore('users', users);
+        } else {
+            // localStorage 模式：初始化全部演示数据
+            const users = [
+                { id: 'u_admin', username: 'fancy', password: 'admin123', displayName: '妮妮（Fancy）', avatarChar: '妮', role: 'admin', group: null, isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_leader1', username: 'wanglei', password: '123456', displayName: '王磊', avatarChar: '磊', role: 'leader', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_leader2', username: 'zhaomin', password: '123456', displayName: '赵敏', avatarChar: '敏', role: 'leader', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_emp1', username: 'zhangsan', password: '123456', displayName: '张三', avatarChar: '张', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_emp2', username: 'lisi', password: '123456', displayName: '李四', avatarChar: '李', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_emp3', username: 'wangwu', password: '123456', displayName: '王五', avatarChar: '王', role: 'employee', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_emp4', username: 'xiaohong', password: '123456', displayName: '小红', avatarChar: '红', role: 'employee', group: '置换组', isActive: true, createdAt: new Date().toISOString() },
+                { id: 'u_emp5', username: 'xiaoming', password: '123456', displayName: '小明', avatarChar: '明', role: 'employee', group: '销售组', isActive: true, createdAt: new Date().toISOString() },
+            ];
+            setStore('users', users);
+        }
 
         // 初始化学习进度（模拟已有部分进度）
         const progress = [
