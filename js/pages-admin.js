@@ -274,11 +274,11 @@ PageRenderers['adm-resources'] = async function(c) {
                 </div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-secondary)">学习要点：${contentStatus}</span>
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-muted)">📄 SOP文档</span>
-                <span style="padding:6px 12px;background:var(--bg-tertiary);border-radius:8px;font-size:13px;color:var(--text-muted)">🎬 教学视频</span>
+                <span style="padding:6px 12px;background:#dce3f0;border-radius:8px;font-size:13px;color:#1e2d52;font-weight:500">✅ 学习要点：${contentStatus}</span>
+                <span style="padding:6px 12px;background:#e8ecf4;border-radius:8px;font-size:13px;color:#5a6b82">📄 SOP文档</span>
+                <span style="padding:6px 12px;background:#e8ecf4;border-radius:8px;font-size:13px;color:#5a6b82">🎬 教学视频</span>
             </div>
-            <div style="font-size:13px;color:var(--text-muted)">及格分数：${ch.passingScore}分 · 考试限时：${ch.timeLimit}分钟</div>
+            <div style="font-size:13px;color:#5a6b82">及格分数：<strong style="color:#2c3e6b">${ch.passingScore}分</strong> · 考试限时：<strong style="color:#2c3e6b">${ch.timeLimit}分钟</strong></div>
         </div>`;
     }).join('');
 
@@ -591,7 +591,7 @@ PageRenderers['adm-scoring'] = async function(c) {
                     </div>
                     <span class="badge badge-warning">待评分</span>
                 </div>
-                <div style="padding:14px;background:var(--bg-tertiary);border-radius:10px;margin-bottom:14px">
+                <div style="padding:14px;background:#e8ecf4;border-radius:10px;margin-bottom:14px">
                     <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">学员答题数据：</div>
                     <div style="font-size:14px;line-height:1.7">
                         ${r.answers ? Object.entries(r.answers).map(([k, v]) => {
