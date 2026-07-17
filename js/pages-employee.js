@@ -433,7 +433,7 @@ async function showWrongAnswerAnalysis(chapterId, chapterTitle) {
                 }
             })();
 
-            allItems.push({ q, ans, isCorrect, userAnswerText, correctAnswerText, index: i });
+            allItems.push({ q, ans, isCorrect, isObjective: true, userAnswerText, correctAnswerText, index: i });
             if (!isCorrect) wrongItems.push({ q, ans, userAnswerText, correctAnswerText, index: i });
         } else {
             // 主观题也展示，但不标记对错
