@@ -275,12 +275,12 @@ function submitLocalExam(examId, answers, screenSwitchCount) {
     const exams = getStore('exams') || [];
     const exam = exams.find(e => e.id === examId);
     if (exam) {
-        exam.status = 'submitted';
         exam.answers = answers;
         exam.screenSwitchCount = screenSwitchCount;
         exam.submitTime = new Date().toISOString();
-        // 自动评分
+        // 自动评分（客观题）
         let autoScore = 0;
+        let hasSubjective = false;
         if (exam.questionsSnapshot) {
             exam.questionsSnapshot.forEach((q, i) => {
                 const ans = answers[i];
@@ -288,10 +288,27 @@ function submitLocalExam(examId, answers, screenSwitchCount) {
                     if (ans && ans.selected === q.answer.index) autoScore += q.score;
                 } else if (q.questionType === 'fill_blank') {
                     if (ans && ans.text && ans.text.trim().toLowerCase() === q.answer.text.toLowerCase()) autoScore += q.score;
+                } else if (q.questionType === 'essay' || q.questionType === 'practice') {
+                    hasSubjective = true;
                 }
             });
         }
         exam.autoScore = autoScore;
+
+        if (hasSubjective) {
+            // 有主观题 → 待人工评分
+            exam.status = 'submitted';
+        } else {
+            // 全是客观题 → 直接出总分和结果
+            const chapters = (typeof CHAPTERS_CONFIG !== 'undefined' ? CHAPTERS_CONFIG : []);
+            const chapter = chapters.find(ch => ch.id === exam.chapterId);
+            const passingScore = chapter ? chapter.passingScore : 80;
+            const totalScore = autoScore;
+            exam.manualScore = 0;
+            exam.totalScore = totalScore;
+            exam.status = totalScore >= passingScore ? 'passed' : 'failed';
+            exam.scoredAt = new Date().toISOString();
+        }
         setStore('exams', exams);
     }
     return true;

@@ -348,50 +348,37 @@ async function doSubmitExam(examId, questions, chapter) {
     // 显示结果
     const resultArea = document.getElementById('examResult');
     if (resultArea) {
-        resultArea.innerHTML = `
-            <div class="card" style="border-color:var(--success);animation:scaleIn .4s ease">
-                <div class="card-title"><span class="emoji">📊</span>考试结果</div>
-                <div class="grid grid-3" style="margin-bottom:20px">
-                    <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">客观题得分</div>
-                        <div style="font-size:28px;font-weight:700;font-family:Outfit;color:var(--success)">${autoScore}</div>
-                        <div style="font-size:12px;color:var(--text-muted)">/ ${objTotal}分</div>
+        if (subjCount === 0) {
+            // 全是客观题，直接显示最终结果
+            const passed = autoScore >= chapter.passingScore;
+            resultArea.innerHTML = `
+                <div class="card" style="border-color:var(--success);animation:scaleIn .4s ease">
+                    <div class="card-title"><span class="emoji">📊</span>考试结果</div>
+                    <div class="grid grid-3" style="margin-bottom:20px">
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">总分</div>
+                            <div style="font-size:28px;font-weight:700;font-family:Outfit;color:${passed ? 'var(--success)' : 'var(--danger)'}">${autoScore}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">/ ${objTotal}分</div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">及格线</div>
+                            <div style="font-size:28px;font-weight:700;font-family:Outfit;color:var(--primary)">${chapter.passingScore}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">分</div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">结果</div>
+                            <div style="font-size:20px;font-weight:700;color:${passed ? 'var(--success)' : 'var(--danger)'};margin-top:4px">${passed ? '✅ 通过' : '❌ 未通过'}</div>
+                        </div>
                     </div>
-                    <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">主观题</div>
-                        <div style="font-size:28px;font-weight:700;font-family:Outfit;color:var(--warning)">${subjCount}题</div>
-                        <div style="font-size:12px;color:var(--text-muted)">待人工评分</div>
-                    </div>
-                    <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">状态</div>
-                        <div style="font-size:20px;font-weight:700;color:var(--warning);margin-top:4px">评分中</div>
+                    <p style="font-size:13px;color:var(--text-muted)">本次考试全部为客观题，已自动完成评分。</p>
+                    <div style="margin-top:16px;display:flex;gap:10px">
+                        <button class="btn btn-ghost btn-sm" onclick="navigateTo('emp-exams')">查看考试列表</button>
+                        <button class="btn btn-primary btn-sm" onclick="navigateTo('emp-dashboard')">返回学习首页</button>
                     </div>
                 </div>
-                <p style="font-size:13px;color:var(--text-muted)">客观题已自动评分（${autoScore}/${objTotal}分），主观题和实操题需管理员人工评分后才能得出最终结果。</p>
-                <div style="margin-top:16px;display:flex;gap:10px">
-                    <button class="btn btn-ghost btn-sm" onclick="navigateTo('emp-exams')">查看考试列表</button>
-                    <button class="btn btn-primary btn-sm" onclick="navigateTo('emp-dashboard')">返回学习首页</button>
-                </div>
-            </div>
-        `;
-        resultArea.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // 模拟管理员评分（演示模式）
-    setTimeout(async () => {
-        const manualScore = Math.floor(Math.random() * 20) + 15; // 模拟主观题得分15-35分
-        const totalScore = autoScore + manualScore;
-        const exams = getStore('exams') || [];
-        const exam = exams.find(e => e.id === examId);
-        if (exam) {
-            exam.manualScore = manualScore;
-            exam.totalScore = totalScore;
-            exam.status = totalScore >= chapter.passingScore ? 'passed' : 'failed';
-            exam.scoredAt = new Date().toISOString();
-            setStore('exams', exams);
-
-            // 如果通过了，解锁下一章节
-            if (exam.status === 'passed') {
+            `;
+            // 解锁下一章节
+            if (passed) {
                 const user = AppState.currentUser;
                 const chapters = getChaptersForGroup(user.group);
                 const currentIdx = chapters.findIndex(ch => ch.id === chapter.id);
@@ -401,8 +388,63 @@ async function doSubmitExam(examId, questions, chapter) {
                     showUnlockAnimation(chapter.title, nextChapter.title);
                 }
             }
+        } else {
+            // 有主观题，显示待评分状态
+            resultArea.innerHTML = `
+                <div class="card" style="border-color:var(--success);animation:scaleIn .4s ease">
+                    <div class="card-title"><span class="emoji">📊</span>考试结果</div>
+                    <div class="grid grid-3" style="margin-bottom:20px">
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">客观题得分</div>
+                            <div style="font-size:28px;font-weight:700;font-family:Outfit;color:var(--success)">${autoScore}</div>
+                            <div style="font-size:12px;color:var(--text-muted)">/ ${objTotal}分</div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">主观题</div>
+                            <div style="font-size:28px;font-weight:700;font-family:Outfit;color:var(--warning)">${subjCount}题</div>
+                            <div style="font-size:12px;color:var(--text-muted)">待人工评分</div>
+                        </div>
+                        <div style="text-align:center;padding:16px;background:var(--bg-tertiary);border-radius:10px">
+                            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">状态</div>
+                            <div style="font-size:20px;font-weight:700;color:var(--warning);margin-top:4px">评分中</div>
+                        </div>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-muted)">客观题已自动评分（${autoScore}/${objTotal}分），主观题和实操题需管理员人工评分后才能得出最终结果。</p>
+                    <div style="margin-top:16px;display:flex;gap:10px">
+                        <button class="btn btn-ghost btn-sm" onclick="navigateTo('emp-exams')">查看考试列表</button>
+                        <button class="btn btn-primary btn-sm" onclick="navigateTo('emp-dashboard')">返回学习首页</button>
+                    </div>
+                </div>
+            `;
+
+            // 模拟管理员评分（演示模式）—— 仅当有主观题时
+            setTimeout(async () => {
+                const manualScore = Math.floor(Math.random() * 20) + 15;
+                const totalScore = autoScore + manualScore;
+                const exams = getStore('exams') || [];
+                const exam = exams.find(e => e.id === examId);
+                if (exam) {
+                    exam.manualScore = manualScore;
+                    exam.totalScore = totalScore;
+                    exam.status = totalScore >= chapter.passingScore ? 'passed' : 'failed';
+                    exam.scoredAt = new Date().toISOString();
+                    setStore('exams', exams);
+
+                    if (exam.status === 'passed') {
+                        const user = AppState.currentUser;
+                        const chapters = getChaptersForGroup(user.group);
+                        const currentIdx = chapters.findIndex(ch => ch.id === chapter.id);
+                        if (currentIdx < chapters.length - 1) {
+                            const nextChapter = chapters[currentIdx + 1];
+                            await updateProgress(user.id, nextChapter.id, 'in_progress', 0);
+                            showUnlockAnimation(chapter.title, nextChapter.title);
+                        }
+                    }
+                }
+            }, 3000);
         }
-    }, 3000);
+        resultArea.scrollIntoView({ behavior: 'smooth' });
+    }
 
     // 清除考试上下文
     window._examAnswers = {};
