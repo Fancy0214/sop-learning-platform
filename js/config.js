@@ -69,14 +69,22 @@ loadChapterConfig();
 
 const CHAPTERS_CONFIG = CHAPTERS_CONFIG_DEFAULT;
 
+// 置换组章节顺序：定校咨询放到申请跟进之后
+const REPLACE_GROUP_ORDER = [1, 9, 10, 11, 12, 2, 3, 13];
+
 // 根据组别获取章节列表
 function getChaptersForGroup(groupName) {
-    return CHAPTERS_CONFIG.filter(ch => {
+    const filtered = CHAPTERS_CONFIG.filter(ch => {
         if (ch.groupType === 'common') return true;
         if (groupName === GROUPS.SALES && ch.groupType === 'sales') return true;
         if (groupName === GROUPS.REPLACE && ch.groupType === 'replace') return true;
         return false;
     });
+    // 置换组按自定义顺序排列
+    if (groupName === GROUPS.REPLACE) {
+        filtered.sort((a, b) => REPLACE_GROUP_ORDER.indexOf(a.id) - REPLACE_GROUP_ORDER.indexOf(b.id));
+    }
+    return filtered;
 }
 
 // ===== 题型定义 =====

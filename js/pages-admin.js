@@ -36,7 +36,7 @@ PageRenderers['adm-dash'] = async function(c) {
             <td>${completed}/${chapters.length}</td>
             <td><div class="progress" style="width:100px"><div class="progress-fill pf-primary" style="width:${pct}%"></div></div></td>
             <td>${pct}%</td>
-            <td>${statusBadge(pct === 100 ? 'completed' : pct > 0 ? 'in_progress' : 'locked')}</td>
+            <td>${statusBadge(pct === 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started')}</td>
         </tr>`;
     }
 
@@ -741,7 +741,7 @@ PageRenderers['adm-progress'] = async function(c) {
         let chBadges = '';
         chapters.forEach((ch, i) => {
             const p = progress.find(pr => pr.chapterId === ch.id);
-            const status = p ? p.status : 'locked';
+            const status = p ? p.status : 'not_started';
             if (status === 'completed') chBadges += `<span class="badge badge-success" style="font-size:10px">Ch${i + 1}✓</span> `;
             else if (status === 'in_progress') chBadges += `<span class="badge badge-primary" style="font-size:10px">Ch${i + 1}</span> `;
             else chBadges += `<span class="badge badge-muted" style="font-size:10px">Ch${i + 1}</span> `;

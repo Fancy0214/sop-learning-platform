@@ -295,16 +295,14 @@ async function getUserChapterStatus(userId, chapters) {
 
     return chapters.map((ch, i) => {
         const p = progress.find(pr => pr.chapterId === ch.id);
-        let status = 'locked';
+        let status = 'in_progress';
         let progressPct = 0;
 
         if (p) {
             status = p.status;
             progressPct = p.progressPct || 0;
-        } else if (i === 0) {
-            // 第一章默认解锁
-            status = 'in_progress';
         }
+        // 所有章节默认解锁，可自由学习，推荐按顺序
 
         return {
             ...ch,

@@ -27,47 +27,47 @@ function initLocalData() {
             { userId: 'u_emp1', chapterId: 4, status: 'completed', progressPct: 100 },
             { userId: 'u_emp1', chapterId: 5, status: 'completed', progressPct: 100 },
             { userId: 'u_emp1', chapterId: 6, status: 'in_progress', progressPct: 60 },
-            { userId: 'u_emp1', chapterId: 7, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp1', chapterId: 8, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp1', chapterId: 13, status: 'locked', progressPct: 0 },
+            { userId: 'u_emp1', chapterId: 7, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp1', chapterId: 8, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp1', chapterId: 13, status: 'in_progress', progressPct: 0 },
 
             { userId: 'u_emp2', chapterId: 1, status: 'completed', progressPct: 100 },
             { userId: 'u_emp2', chapterId: 2, status: 'completed', progressPct: 100 },
             { userId: 'u_emp2', chapterId: 3, status: 'in_progress', progressPct: 45 },
-            { userId: 'u_emp2', chapterId: 4, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp2', chapterId: 5, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp2', chapterId: 6, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp2', chapterId: 7, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp2', chapterId: 8, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp2', chapterId: 13, status: 'locked', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 4, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 5, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 6, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 7, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 8, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp2', chapterId: 13, status: 'in_progress', progressPct: 0 },
 
             { userId: 'u_emp3', chapterId: 1, status: 'completed', progressPct: 100 },
             { userId: 'u_emp3', chapterId: 2, status: 'completed', progressPct: 100 },
             { userId: 'u_emp3', chapterId: 3, status: 'completed', progressPct: 100 },
             { userId: 'u_emp3', chapterId: 9, status: 'completed', progressPct: 100 },
             { userId: 'u_emp3', chapterId: 10, status: 'in_progress', progressPct: 70 },
-            { userId: 'u_emp3', chapterId: 11, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp3', chapterId: 12, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp3', chapterId: 13, status: 'locked', progressPct: 0 },
+            { userId: 'u_emp3', chapterId: 11, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp3', chapterId: 12, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp3', chapterId: 13, status: 'in_progress', progressPct: 0 },
 
             { userId: 'u_emp4', chapterId: 1, status: 'in_progress', progressPct: 30 },
-            { userId: 'u_emp4', chapterId: 2, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 3, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 9, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 10, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 11, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 12, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp4', chapterId: 13, status: 'locked', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 2, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 3, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 9, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 10, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 11, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 12, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp4', chapterId: 13, status: 'in_progress', progressPct: 0 },
 
             { userId: 'u_emp5', chapterId: 1, status: 'completed', progressPct: 100 },
             { userId: 'u_emp5', chapterId: 2, status: 'in_progress', progressPct: 55 },
-            { userId: 'u_emp5', chapterId: 3, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 4, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 5, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 6, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 7, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 8, status: 'locked', progressPct: 0 },
-            { userId: 'u_emp5', chapterId: 13, status: 'locked', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 3, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 4, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 5, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 6, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 7, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 8, status: 'in_progress', progressPct: 0 },
+            { userId: 'u_emp5', chapterId: 13, status: 'in_progress', progressPct: 0 },
         ];
         setStore('progress', progress);
 
@@ -408,13 +408,10 @@ function createLocalUser(username, password, displayName, role, groupName) {
         progress.push({
             userId: user.id,
             chapterId: ch.id,
-            status: i === 0 ? 'locked' : 'locked',
+            status: 'in_progress',
             progressPct: 0
         });
     });
-    // 解锁第一章
-    const firstChIdx = progress.findIndex(p => p.userId === user.id && p.chapterId === chapters[0].id);
-    if (firstChIdx >= 0) progress[firstChIdx].status = 'in_progress';
     setStore('progress', progress);
 
     return { success: true, user: { id: user.id, username, displayName, role, group: groupName } };

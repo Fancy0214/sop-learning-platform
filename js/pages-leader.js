@@ -91,10 +91,10 @@ PageRenderers['ldr-progress'] = async function(c) {
         let chBadges = '';
         chapters.forEach((ch, i) => {
             const p = progress.find(pr => pr.chapterId === ch.id);
-            const status = p ? p.status : 'locked';
+            const status = p ? p.status : 'not_started';
             if (status === 'completed') chBadges += `<span class="badge badge-success" style="font-size:10px" title="${ch.title}">Ch${i + 1}✓</span> `;
             else if (status === 'in_progress') chBadges += `<span class="badge badge-primary" style="font-size:10px" title="${ch.title}">Ch${i + 1}</span> `;
-            else chBadges += `<span class="badge badge-muted" style="font-size:10px" title="${ch.title}">Ch${i + 1}🔒</span> `;
+            else chBadges += `<span class="badge badge-muted" style="font-size:10px" title="${ch.title}">Ch${i + 1}</span> `;
         });
 
         rows += `<tr>

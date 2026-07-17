@@ -47,8 +47,8 @@ PageRenderers['emp-dashboard'] = async function(c) {
             <div class="card-title"><span class="emoji">📖</span>章节概览</div>
             <div class="chapter-list">
                 ${statuses.map((ch, i) => `
-                    <div class="ch-item ch-${ch.status === 'completed' ? 'done' : ch.status === 'in_progress' ? 'active' : 'locked'}"
-                         onclick="${ch.isUnlocked ? `navigateTo('emp-learn-${ch.id}')` : 'void(0)'}">
+                    <div class="ch-item ch-${ch.isCompleted ? 'done' : 'active'}"
+                         onclick="navigateTo('emp-learn-${ch.id}')">
                         <div class="ch-num">${i + 1}</div>
                         <div class="ch-info">
                             <div class="ch-title">${ch.title}</div>
@@ -57,7 +57,7 @@ PageRenderers['emp-dashboard'] = async function(c) {
                         <div class="ch-meta">
                             ${ch.isCompleted ? '<span class="badge badge-success">✓ 已完成</span>' :
                               ch.status === 'in_progress' ? `<span class="badge badge-primary">学习中 ${ch.progressPct}%</span>` :
-                              '<span class="badge badge-muted">🔒 未解锁</span>'}
+                              '<span class="badge badge-muted">待学习</span>'}
                         </div>
                     </div>
                 `).join('')}
@@ -80,12 +80,12 @@ PageRenderers['emp-chapters'] = async function(c) {
             </div>
         </div>
         <div class="card" style="background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(6,182,212,.05));border-color:rgba(99,102,241,.15);margin-bottom:20px">
-            <p style="color:var(--text-secondary);font-size:14px">按顺序完成每个章节的学习和考试，通过后自动解锁下一章节。当前共 ${chapters.length} 个章节。</p>
+            <p style="color:var(--text-secondary);font-size:14px">💡 推荐按顺序学习，也可以自由点击任意章节开始。当前共 ${chapters.length} 个章节。</p>
         </div>
         <div class="chapter-list">
             ${statuses.map((ch, i) => `
-                <div class="ch-item ch-${ch.status === 'completed' ? 'done' : ch.status === 'in_progress' ? 'active' : 'locked'}"
-                     onclick="${ch.isUnlocked ? `navigateTo('emp-learn-${ch.id}')` : 'void(0)'}">
+                <div class="ch-item ch-${ch.isCompleted ? 'done' : 'active'}"
+                     onclick="navigateTo('emp-learn-${ch.id}')">
                     <div class="ch-num">${i + 1}</div>
                     <div class="ch-info">
                         <div class="ch-title">${ch.title}</div>
@@ -93,8 +93,8 @@ PageRenderers['emp-chapters'] = async function(c) {
                     </div>
                     <div class="ch-meta">
                         ${ch.isCompleted ? '<span class="badge badge-success">✓ 已通过</span>' :
-                          ch.status === 'in_progress' ? `<span class="badge badge-primary">学习中</span>` :
-                          '<span class="badge badge-muted">🔒</span>'}
+                          ch.progressPct > 0 ? `<span class="badge badge-primary">学习中 ${ch.progressPct}%</span>` :
+                          '<span class="badge badge-muted">待学习</span>'}
                     </div>
                 </div>
             `).join('')}
@@ -113,10 +113,7 @@ function registerLearnPage(chapterId) {
         const chapters = getChaptersForGroup(user.group);
         const statuses = await getUserChapterStatus(user.id, chapters);
         const currentStatus = statuses.find(s => s.id === chapterId);
-        if (!currentStatus || !currentStatus.isUnlocked) {
-            c.innerHTML = '<div class="card"><p>🔒 该章节尚未解锁</p><button class="btn btn-ghost" onclick="navigateTo(\'emp-chapters\')">返回章节列表</button></div>';
-            return;
-        }
+        // 所有章节均可自由学习，无需解锁检查
 
         // 获取学习内容
         const contents = await getLearningContent(chapterId);
@@ -163,7 +160,7 @@ function registerLearnPage(chapterId) {
         `;
 
         // 更新学习进度
-        if (currentStatus.status === 'locked' || currentStatus.progressPct === 0) {
+        if (currentStatus.progressPct === 0) {
             await updateProgress(user.id, chapterId, 'in_progress', 10);
         }
     };
@@ -222,7 +219,7 @@ PageRenderers['emp-exams'] = async function(c) {
             examRows += `
                 <tr>
                     <td>${ch.title}</td>
-                    <td><span class="badge badge-muted">🔒 未解锁</span></td>
+                    <td><span class="badge badge-muted">待学习</span></td>
                     <td>-</td>
                     <td>${ch.passingScore}</td>
                     <td><span class="text-muted" style="font-size:13px">需先完成学习</span></td>

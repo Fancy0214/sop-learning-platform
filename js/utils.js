@@ -7,6 +7,23 @@
 function markdownToHtml(md) {
     if (!md) return '';
     let html = md;
+    // 清理残留的 markdown 标记符，避免渲染为乱码
+    // 1. 移除代码围栏（``` 或 ```语言名）
+    html = html.replace(/^```\w*$/gm, '');
+    html = html.replace(/^```\s*$/gm, '');
+    // 2. 移除未配对的孤立反引号（不成对的单个或多个反引号）
+    //    先移除所有 ``` 代码围栏
+    html = html.replace(/```/g, '');
+    //    再移除不成对的反引号：如果反引号数量是奇数，移除多余的
+    html = html.replace(/`([^`]*)`/g, '<<KEEP_INLINE_CODE>>$1<</KEEP_INLINE_CODE>>');
+    html = html.replace(/`/g, '');
+    html = html.replace(/<<KEEP_INLINE_CODE>>/g, '`');
+    html = html.replace(/<<\/KEEP_INLINE_CODE>>/g, '`');
+    // 3. 移除不成对的管道符（不在表格上下文中的孤立 |）
+    html = html.replace(/^\|?\s*\|?\s*$/gm, '');
+    // 4. 移除 markdown 表格中的对齐行（如 |---|---|）
+    html = html.replace(/^\|?[\s-]+\|[\s-|]*$/gm, '');
+
     // 转义HTML
     html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     // 标题
@@ -17,7 +34,7 @@ function markdownToHtml(md) {
     // 粗体、斜体
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // 行内代码
+    // 行内代码（清理后只剩配对的）
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     // 引用块
     html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
@@ -197,6 +214,7 @@ function statusBadge(status) {
         'completed': { class: 'badge-success', text: '已完成' },
         'in_progress': { class: 'badge-primary', text: '进行中' },
         'locked': { class: 'badge-muted', text: '未解锁' },
+        'not_started': { class: 'badge-muted', text: '未开始' },
         'passed': { class: 'badge-success', text: '通过' },
         'failed': { class: 'badge-danger', text: '未通过' },
         'submitted': { class: 'badge-warning', text: '待评分' },
