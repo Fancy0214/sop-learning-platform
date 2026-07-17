@@ -864,3 +864,13 @@ textarea.q-input { min-height: 120px; resize: vertical; line-height: 1.6; }
 .justify-between { justify-content: space-between; }
 .flex-wrap { flex-wrap: wrap; }
 .hidden { display: none !important; }
+
+
+/* Admin table clickable name */
+#progressTable td a {
+    transition: color 0.2s, text-decoration 0.2s;
+}
+#progressTable td a:hover {
+    color: var(--secondary) !important;
+    text-decoration: underline;
+}

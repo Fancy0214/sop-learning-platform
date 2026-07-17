@@ -315,19 +315,8 @@ PageRenderers['emp-report'] = async function(c) {
         </div>
 
         ${avgScore > 0 ? `
-        <div class="card">
-            <div class="card-title"><span class="emoji">🎯</span>胜任力维度分析</div>
-            <div class="competency-bars">${compBarsHtml}</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title"><span class="emoji">💡</span>评估结论与建议</div>
-            <div style="line-height:2;color:var(--text-secondary);font-size:14px">
-                <p style="margin-bottom:12px"><strong style="color:#059669">✓ 总体评价：</strong>综合评分${avgScore}分，${avgScore >= 80 ? '已达到岗位要求标准，表现优秀' : '接近岗位要求标准，继续努力'}。</p>
-                <p style="margin-bottom:12px"><strong style="color:#2c3e6b">💡 优势领域：</strong>${competencies.sort((a, b) => b.score - a.score).slice(0, 2).map(c => c.name + '（' + c.score + '分）').join('、')}表现突出。</p>
-                <p style="margin-bottom:12px"><strong style="color:#b45309">⚠ 待提升：</strong>${competencies.sort((a, b) => a.score - b.score).slice(0, 1).map(c => c.name + '（' + c.score + '分）').join('')}仍有提升空间。</p>
-                <p><strong style="color:${allPassed ? '#059669' : '#5a6b82'}">${allPassed ? '✓ 转正建议：所有章节已通过，综合评估优秀，建议予以转正' : '○ 完成所有章节考试后将生成转正建议'}</strong></p>
-            </div>
+        <div class="card" style="text-align:center;padding:24px">
+            <div style="font-size:14px;color:var(--text-secondary)">💡 综合评估报告、胜任力分析及转正建议请咨询组长或管理员</div>
         </div>` : ''}
     `;
 };

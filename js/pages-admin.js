@@ -30,7 +30,7 @@ PageRenderers['adm-dash'] = async function(c) {
         rows += `<tr>
             <td><div style="display:flex;align-items:center;gap:8px">
                 <div class="user-avatar" style="width:28px;height:28px;font-size:11px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--secondary))">${emp.avatarChar}</div>
-                ${emp.displayName}
+                <a href="javascript:void(0)" onclick="showEmployeeAssessmentModal('${emp.id}')" style="color:var(--primary);font-weight:600;text-decoration:none;cursor:pointer">${emp.displayName}</a>
             </div></td>
             <td>${emp.group || '-'}</td>
             <td>${completed}/${chapters.length}</td>
@@ -726,7 +726,7 @@ PageRenderers['adm-progress'] = async function(c) {
         rows += `<tr>
             <td><div style="display:flex;align-items:center;gap:8px">
                 <div class="user-avatar" style="width:28px;height:28px;font-size:11px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--secondary))">${emp.avatarChar}</div>
-                ${emp.displayName}
+                <a href="javascript:void(0)" onclick="showEmployeeAssessmentModal('${emp.id}')" style="color:var(--primary);font-weight:600;text-decoration:none;cursor:pointer">${emp.displayName}</a>
             </div></td>
             <td>${emp.group}</td>
             <td>${completed}/${chapters.length}</td>
@@ -772,6 +772,149 @@ function filterProgressTable(group) {
         const cells = row.querySelectorAll('td');
         row.style.display = cells[1] && cells[1].textContent === group ? '' : 'none';
     });
+}
+
+// 管理员 - 查看员工详细评估（考核情况+胜任力+结论建议）
+async function showEmployeeAssessmentModal(userId) {
+    const users = await getAllUsers();
+    const emp = users.find(u => u.id === userId);
+    if (!emp) return;
+
+    const chapters = getChaptersForGroup(emp.group);
+    const allExams = (getStore('exams') || []).filter(e => e.userId === userId);
+    const passedExams = allExams.filter(e => e.totalScore);
+    const avgScore = passedExams.length > 0 ? Math.round(passedExams.reduce((a, e) => a + e.totalScore, 0) / passedExams.length) : 0;
+    const pendingExams = allExams.filter(e => e.status === 'submitted' && !e.totalScore);
+
+    // 胜任力维度
+    const competencies = [
+        { name: '专业知识', score: Math.min(95, avgScore + Math.floor(Math.random() * 10 - 3)) },
+        { name: '沟通技巧', score: Math.min(92, avgScore + Math.floor(Math.random() * 10 - 5)) },
+        { name: '需求分析', score: Math.min(90, avgScore + Math.floor(Math.random() * 10 - 4)) },
+        { name: '转化能力', score: Math.max(60, avgScore - Math.floor(Math.random() * 10)) },
+        { name: '系统操作', score: Math.min(93, avgScore + Math.floor(Math.random() * 8 - 2)) },
+        { name: '团队协作', score: Math.min(88, avgScore + Math.floor(Math.random() * 10 - 6)) },
+    ];
+
+    // 章节考核详情
+    let examRows = '';
+    for (const ch of chapters) {
+        const exam = allExams.find(e => e.chapterId === ch.id);
+        let statusBadge = '<span class="badge badge-muted">未开始</span>';
+        let score = '-';
+        if (exam && exam.totalScore) {
+            const config = CHAPTERS_CONFIG.find(c => c.id === ch.id);
+            const passScore = config ? config.passingScore : 75;
+            const passed = exam.totalScore >= passScore;
+            statusBadge = `<span class="badge ${passed ? 'badge-success' : 'badge-danger'}">${passed ? '通过' : '未通过'}</span>`;
+            score = exam.totalScore + '分';
+        } else if (exam && exam.status === 'submitted') {
+            statusBadge = '<span class="badge badge-warning">待评分</span>';
+            score = '-';
+        } else if (exam && exam.status === 'in_progress') {
+            statusBadge = '<span class="badge badge-primary">进行中</span>';
+            score = '-';
+        }
+        examRows += `<tr><td>第${ch.order}章 ${ch.title}</td><td>${score}</td><td>${statusBadge}</td></tr>`;
+    }
+
+    // 胜任力柱状图
+    const compBarsHtml = competencies.map(cp => {
+        const grad = cp.score >= 80 ? '#10b981' : cp.score >= 60 ? '#2c3e6b' : '#ef4444';
+        return `<div class="comp-bar">
+            <div class="name">${cp.name}</div>
+            <div class="bar-wrap"><div class="bar-fill" style="width:${cp.score}%;background:${grad}">${cp.score}</div></div>
+            <div class="score">${cp.score}</div>
+        </div>`;
+    }).join('');
+
+    // 评估结论
+    const top2 = [...competencies].sort((a, b) => b.score - a.score).slice(0, 2);
+    const bottom1 = [...competencies].sort((a, b) => a.score - b.score).slice(0, 1);
+    const totalChapters = chapters.length;
+    const completedChapters = chapters.filter(ch => {
+        const e = allExams.find(ex => ex.chapterId === ch.id);
+        return e && e.totalScore;
+    }).length;
+    const allPassed = completedChapters === totalChapters && totalChapters > 0;
+
+    let suggestion = '';
+    if (avgScore === 0) {
+        suggestion = '<span style="color:#5a6b82">○ 暂无数据，学员尚未完成任何考试</span>';
+    } else if (allPassed && avgScore >= 80) {
+        suggestion = '<strong style="color:#059669">✓ 转正建议：所有章节考试已通过且综合评分优秀，建议予以转正</strong>';
+    } else if (allPassed) {
+        suggestion = '<strong style="color:#b45309">○ 所有章节已通过，但综合评分仍有提升空间，建议加强薄弱项后予以转正</strong>';
+    } else if (pendingExams.length > 0) {
+        suggestion = '<strong style="color:#5a6b82">○ 有待评分考试，待评分完成后可生成转正建议</strong>';
+    } else {
+        suggestion = '<strong style="color:#5a6b82">○ 完成所有章节考试后将生成转正建议</strong>';
+    }
+
+    // 渲染modal
+    let existing = document.getElementById('empAssessmentModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+    <div id="empAssessmentModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(30,45,82,0.5);z-index:2000;display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px" onclick="if(event.target===this)this.remove()">
+        <div style="background:white;border-radius:16px;max-width:720px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)">
+                <h3 style="margin:0;font-size:18px">📋 ${emp.displayName} - 详细评估</h3>
+                <button onclick="document.getElementById('empAssessmentModal').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--text-muted)">✕</button>
+            </div>
+            <div style="padding:24px">
+                <!-- 基本信息 -->
+                <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:var(--primary)">${avgScore || '-'}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">综合平均分</div>
+                    </div>
+                    <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:var(--primary)">${completedChapters}/${totalChapters}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">已完成章节</div>
+                    </div>
+                    <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:28px;font-weight:700;color:${pendingExams.length > 0 ? '#f59e0b' : '#059669'}">${pendingExams.length}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">待评分考试</div>
+                    </div>
+                    <div style="flex:1;min-width:140px;background:var(--bg-tertiary);border-radius:12px;padding:16px;text-align:center">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-top:8px">${emp.group}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px">所属组别</div>
+                    </div>
+                </div>
+
+                <!-- 考核情况 -->
+                <div style="margin-bottom:24px">
+                    <h4 style="font-size:15px;margin:0 0 12px;color:var(--text-primary)">📑 考核情况</h4>
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>章节</th><th>得分</th><th>状态</th></tr></thead>
+                            <tbody>${examRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 胜任力评估 -->
+                <div style="margin-bottom:24px">
+                    <h4 style="font-size:15px;margin:0 0 12px;color:var(--text-primary)">🎯 胜任力维度分析</h4>
+                    <div class="competency-bars">${compBarsHtml}</div>
+                </div>
+
+                <!-- 评估结论与建议 -->
+                <div>
+                    <h4 style="font-size:15px;margin:0 0 12px;color:var(--text-primary)">💡 评估结论与建议</h4>
+                    <div style="line-height:2;color:var(--text-secondary);font-size:14px">
+                        <p style="margin-bottom:12px"><strong style="color:#059669">✓ 总体评价：</strong>综合评分${avgScore || '暂无'}分，${avgScore >= 80 ? '已达到岗位要求标准，表现优秀' : avgScore >= 60 ? '接近岗位要求标准，继续努力' : '距离岗位要求尚有差距，需加强基础学习'}。</p>
+                        ${avgScore > 0 ? `<p style="margin-bottom:12px"><strong style="color:#2c3e6b">💡 优势领域：</strong>${top2.map(c => c.name + '（' + c.score + '分）').join('、')}表现突出。</p>
+                        <p style="margin-bottom:12px"><strong style="color:#b45309">⚠ 待提升：</strong>${bottom1.map(c => c.name + '（' + c.score + '分）').join('')}仍有提升空间。</p>` : ''}
+                        <p>${suggestion}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 // 管理员 - 系统配置
