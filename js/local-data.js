@@ -449,7 +449,15 @@ function getLocalEvaluations(userId, type) {
 
 // ===== 本地学习内容 =====
 function getLocalLearningContent(chapterId) {
-    // 优先使用 chapter-content.js 中的详细内容
+    // 优先使用用户编辑后保存到 localStorage 的内容
+    const editedContents = JSON.parse(localStorage.getItem('sop_editedContents') || '{}');
+    if (editedContents[chapterId]) {
+        const title = (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId])
+            ? CHAPTER_CONTENTS[chapterId].title + ' - 学习要点'
+            : '第' + chapterId + '章 - 学习要点';
+        return [{ title: title, body: editedContents[chapterId] }];
+    }
+    // 其次使用 chapter-content.js 中的详细内容
     if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
         const ch = CHAPTER_CONTENTS[chapterId];
         return [{ title: ch.title + ' - 学习要点', body: ch.body }];
