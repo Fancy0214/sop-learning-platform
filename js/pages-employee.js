@@ -314,9 +314,8 @@ PageRenderers['emp-report'] = async function(c) {
             <div style="display:flex;flex-direction:column;gap:8px">${chapterDetails}</div>
         </div>
 
-        ${avgScore > 0 ? `
-        <div class="card" style="text-align:center;padding:24px">
-            <div style="font-size:14px;color:var(--text-secondary)">💡 综合评估报告、胜任力分析及转正建议请咨询组长或管理员</div>
-        </div>` : ''}
+        <div class="card" style="text-align:center;padding:28px;background:linear-gradient(135deg,#eef2f8 0%,#e3ecf7 100%);border:none">
+            <div style="font-size:16px;color:var(--primary);font-weight:600;letter-spacing:1px">🌟 学无止境，行以致远——你的成长，我们看得见</div>
+        </div>
     `;
 };
