@@ -43,13 +43,13 @@ PageRenderers['adm-dash'] = async function(c) {
     // 待处理事项
     let pendingHtml = '';
     if (pendingReviews.length === 0) {
-        pendingHtml = '<div style="text-align:center;padding:24px;color:var(--text-muted)">暂无待处理事项 ✓</div>';
+        pendingHtml = '<div style="text-align:center;padding:24px;color:#5a6b82">暂无待处理事项 ✓</div>';
     } else {
         pendingHtml = pendingReviews.map(r => `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-tertiary);border-radius:10px">
                 <div>
                     <div style="font-size:14px;font-weight:500">${r.userName} - 第${r.chapterId}章考试</div>
-                    <div style="font-size:12px;color:var(--text-muted)">客观题${r.autoScore || 0}分 · 待人工评分</div>
+                    <div style="font-size:12px;color:#5a6b82">客观题${r.autoScore || 0}分 · 待人工评分</div>
                 </div>
                 <button class="btn btn-primary btn-sm" onclick="navigateTo('adm-scoring')">去评分</button>
             </div>
@@ -71,7 +71,7 @@ PageRenderers['adm-dash'] = async function(c) {
             <div class="stat-card">
                 <div class="label">待评分</div>
                 <div class="value">${pendingReviews.length}</div>
-                <div class="sub" style="color:${pendingReviews.length > 0 ? 'var(--warning)' : 'var(--success)'}">${pendingReviews.length > 0 ? '需处理' : '已清零'}</div>
+                <div class="sub" style="color:${pendingReviews.length > 0 ? '#b45309' : '#059669'}">${pendingReviews.length > 0 ? '需处理' : '已清零'}</div>
             </div>
             <div class="stat-card">
                 <div class="label">题库总量</div>
@@ -256,7 +256,7 @@ PageRenderers['adm-resources'] = async function(c) {
         let contentStatus = '<span class="badge badge-success">已配置</span>';
         if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[ch.id]) {
             const bodyLen = CHAPTER_CONTENTS[ch.id].body.length;
-            contentStatus = `<span class="badge badge-success">已配置</span> <span style="font-size:12px;color:var(--text-muted)">(${Math.round(bodyLen/1000)}k字)</span>`;
+            contentStatus = `<span class="badge badge-success">已配置</span> <span style="font-size:12px;color:#5a6b82">(${Math.round(bodyLen/1000)}k字)</span>`;
         } else {
             contentStatus = '<span class="badge badge-muted">未配置</span>';
         }
@@ -291,7 +291,7 @@ PageRenderers['adm-resources'] = async function(c) {
         </div>
         <div class="card" style="background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(6,182,212,.05));border-color:rgba(99,102,241,.15)">
             <p style="color:var(--text-secondary);font-size:14px">管理各章节的SOP学习资料。点击「查看要点」可预览每章的完整学习内容。</p>
-            <p style="color:var(--text-muted);font-size:13px;margin-top:8px">💡 提示：文件上传功能需连接Supabase Storage后开放</p>
+            <p style="color:#5a6b82;font-size:13px;margin-top:8px">💡 提示：文件上传功能需连接Supabase Storage后开放</p>
         </div>
         ${chCards}
         <div id="contentPreviewModal"></div>
@@ -327,7 +327,7 @@ function previewChapterContent(chapterId, chapterTitle) {
                     <div class="md-content">${htmlContent}</div>
                 </div>
                 <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:12px;color:var(--text-muted)">共 ${Math.round(body.length/1000)}k 字</span>
+                    <span style="font-size:12px;color:#5a6b82">共 ${Math.round(body.length/1000)}k 字</span>
                     <button class="btn btn-ghost btn-sm" onclick="this.closest('.modal-overlay').remove()">关闭</button>
                 </div>
             </div>
@@ -361,13 +361,13 @@ function editChapterContent(chapterId, chapterTitle) {
                 </div>
                 <div style="display:flex;gap:0;flex:1;overflow:hidden;min-height:0">
                     <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border)">
-                        <div style="padding:8px 16px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+                        <div style="padding:8px 16px;font-size:12px;color:#5a6b82;border-bottom:1px solid var(--border);background:var(--bg-secondary)">
                             📝 Markdown 编辑区（支持 Markdown 语法）
                         </div>
                         <textarea id="chapterContentEditor" style="flex:1;width:100%;border:none;outline:none;resize:none;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;background:var(--bg-primary);color:var(--text-primary);tab-size:2" spellcheck="false">${editingContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
                     </div>
                     <div style="flex:1;display:flex;flex-direction:column">
-                        <div style="padding:8px 16px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+                        <div style="padding:8px 16px;font-size:12px;color:#5a6b82;border-bottom:1px solid var(--border);background:var(--bg-secondary)">
                             👁️ 实时预览
                         </div>
                         <div id="chapterContentPreview" style="flex:1;overflow-y:auto;padding:16px;font-size:14px;line-height:1.8">
@@ -376,7 +376,7 @@ function editChapterContent(chapterId, chapterTitle) {
                     </div>
                 </div>
                 <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-                    <span style="font-size:12px;color:var(--text-muted)" id="editorCharCount">共 ${Math.round(editingContent.length/1000)}k 字</span>
+                    <span style="font-size:12px;color:#5a6b82" id="editorCharCount">共 ${Math.round(editingContent.length/1000)}k 字</span>
                     <div style="display:flex;gap:8px">
                         <button class="btn btn-ghost btn-sm" onclick="resetEditorContent(${chapterId})">↩️ 重置</button>
                         <button class="btn btn-ghost btn-sm" onclick="toggleEditorPreview()">🔄 切换全屏</button>
@@ -566,7 +566,7 @@ PageRenderers['adm-questions'] = async function(c) {
                     <tbody>${qRows}</tbody>
                 </table>
             </div>
-            ${allQuestions.length > 30 ? `<div style="text-align:center;padding:12px;color:var(--text-muted);font-size:13px">显示前30题，共${allQuestions.length}题</div>` : ''}
+            ${allQuestions.length > 30 ? `<div style="text-align:center;padding:12px;color:#5a6b82;font-size:13px">显示前30题，共${allQuestions.length}题</div>` : ''}
         </div>
     `;
 };
@@ -587,18 +587,18 @@ PageRenderers['adm-scoring'] = async function(c) {
                 <div class="card-header">
                     <div>
                         <div style="font-weight:600;font-size:15px">${r.userName} · ${r.userGroup || ''}</div>
-                        <div style="font-size:13px;color:var(--text-muted);margin-top:2px">第${r.chapterId}章考试 · 客观题${r.autoScore || 0}分 · 待人工评分</div>
+                        <div style="font-size:13px;color:#5a6b82;margin-top:2px">第${r.chapterId}章考试 · 客观题${r.autoScore || 0}分 · 待人工评分</div>
                     </div>
                     <span class="badge badge-warning">待评分</span>
                 </div>
                 <div style="padding:14px;background:#e8ecf4;border-radius:10px;margin-bottom:14px">
-                    <div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">学员答题数据：</div>
+                    <div style="font-size:13px;color:#5a6b82;margin-bottom:6px">学员答题数据：</div>
                     <div style="font-size:14px;line-height:1.7">
                         ${r.answers ? Object.entries(r.answers).map(([k, v]) => {
                             return `<div style="margin-bottom:8px;padding:8px;background:var(--bg-card);border-radius:6px">
-                                <span style="font-size:12px;color:var(--text-muted)">题目${parseInt(k) + 1}：</span>
+                                <span style="font-size:12px;color:#5a6b82">题目${parseInt(k) + 1}：</span>
                                 ${v.text || '(选择题)'}
-                                ${v.file ? `<br><span style="color:var(--primary-light);font-size:12px">📎 ${v.file}</span>` : ''}
+                                ${v.file ? `<br><span style="color:#2c3e6b;font-size:12px;font-weight:500">📎 ${v.file}</span>` : ''}
                             </div>`;
                         }).join('') : '<span class="text-muted">无答题数据</span>'}
                     </div>
@@ -606,8 +606,8 @@ PageRenderers['adm-scoring'] = async function(c) {
                 <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                     <span style="font-size:14px;flex-shrink:0">主观题评分：</span>
                     <input type="number" min="0" max="100" class="q-input" style="width:80px;padding:8px 12px" placeholder="0-100" id="score_${r.id}">
-                    <span style="font-size:13px;color:var(--text-muted)">分</span>
-                    <span style="font-size:13px;color:var(--text-muted);margin-left:8px">客观题：${r.autoScore || 0}分 + 主观题 = 总分</span>
+                    <span style="font-size:13px;color:#5a6b82">分</span>
+                    <span style="font-size:13px;color:#5a6b82;margin-left:8px">客观题：${r.autoScore || 0}分 + 主观题 = 总分</span>
                     <button class="btn btn-success btn-sm" style="margin-left:auto" onclick="doSubmitScore('${r.id}')">提交评分</button>
                 </div>
             </div>
@@ -757,7 +757,7 @@ PageRenderers['adm-config'] = async function(c) {
                 <div style="display:flex;align-items:center;gap:12px">
                     <span style="font-size:14px;width:160px">最大切屏次数</span>
                     <input type="number" class="q-input" value="${APP_CONFIG.antiCheatMaxSwitches}" style="width:80px;padding:6px 10px">
-                    <span style="font-size:13px;color:var(--text-muted)">次（超过自动交卷）</span>
+                    <span style="font-size:13px;color:#5a6b82">次（超过自动交卷）</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:12px">
                     <span style="font-size:14px;width:160px">题目随机打乱</span>
@@ -772,10 +772,10 @@ PageRenderers['adm-config'] = async function(c) {
         <div class="card">
             <div class="card-title"><span class="emoji">🔗</span>系统信息</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px">
-                <div><span style="color:var(--text-muted)">系统版本</span><br>${APP_CONFIG.version}</div>
-                <div><span style="color:var(--text-muted)">数据模式</span><br>${isSupabaseReady() ? '<span class="badge badge-success">Supabase</span>' : '<span class="badge badge-warning">本地模拟</span>'}</div>
-                <div><span style="color:var(--text-muted)">章节总数</span><br>13个</div>
-                <div><span style="color:var(--text-muted)">题库总量</span><br>${(getStore('questions') || []).length}题</div>
+                <div><span style="color:#5a6b82">系统版本</span><br>${APP_CONFIG.version}</div>
+                <div><span style="color:#5a6b82">数据模式</span><br>${isSupabaseReady() ? '<span class="badge badge-success">Supabase</span>' : '<span class="badge badge-warning">本地模拟</span>'}</div>
+                <div><span style="color:#5a6b82">章节总数</span><br>13个</div>
+                <div><span style="color:#5a6b82">题库总量</span><br>${(getStore('questions') || []).length}题</div>
             </div>
         </div>
     `;

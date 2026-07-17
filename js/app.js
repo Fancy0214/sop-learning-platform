@@ -260,7 +260,7 @@ async function renderNotifList() {
     if (!list) return;
 
     if (notifs.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted)">暂无通知</div>';
+        list.innerHTML = '<div style="text-align:center;padding:40px 0;color:#5a6b82">暂无通知</div>';
         return;
     }
 

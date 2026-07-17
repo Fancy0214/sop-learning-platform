@@ -154,7 +154,7 @@ function registerLearnPage(chapterId) {
             <div class="card" style="border-color:rgba(99,102,241,.3);background:linear-gradient(135deg,rgba(99,102,241,.05),transparent)">
                 <div style="text-align:center;padding:20px 0">
                     <p style="font-size:16px;font-weight:600;margin-bottom:8px">学习完成后，即可参加章节考试</p>
-                    <p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">及格分数：${chapter.passingScore}分 · 限时：${chapter.timeLimit}分钟</p>
+                    <p style="color:#5a6b82;font-size:14px;margin-bottom:20px">及格分数：${chapter.passingScore}分 · 限时：${chapter.timeLimit}分钟</p>
                     <button class="btn btn-primary" onclick="navigateTo('emp-exam-${chapterId}')" style="padding:14px 40px;font-size:16px">
                         📝 开始考试
                     </button>
@@ -300,13 +300,13 @@ PageRenderers['emp-report'] = async function(c) {
         ${avgScore > 0 ? `
         <div class="report-hero">
             <div style="font-size:24px;font-weight:700;margin-bottom:4px">综合学习评估报告</div>
-            <div style="color:var(--text-muted);font-size:14px;margin-bottom:20px">${user.group} · ${user.displayName}</div>
+            <div style="color:#5a6b82;font-size:14px;margin-bottom:20px">${user.group} · ${user.displayName}</div>
             ${renderScoreRing(avgScore)}
         </div>` : `
         <div class="card" style="text-align:center;padding:48px">
             <div style="font-size:48px;margin-bottom:16px">📊</div>
             <p style="font-size:16px;color:var(--text-secondary)">完成考试后将生成评估报告</p>
-            <p style="color:var(--text-muted);margin-top:8px">当前进度：${overallProgress}%</p>
+            <p style="color:#5a6b82;margin-top:8px">当前进度：${overallProgress}%</p>
         </div>`}
 
         <div class="card">
@@ -323,10 +323,10 @@ PageRenderers['emp-report'] = async function(c) {
         <div class="card">
             <div class="card-title"><span class="emoji">💡</span>评估结论与建议</div>
             <div style="line-height:2;color:var(--text-secondary);font-size:14px">
-                <p style="margin-bottom:12px"><strong style="color:var(--success)">✓ 总体评价：</strong>综合评分${avgScore}分，${avgScore >= 80 ? '已达到岗位要求标准，表现优秀' : '接近岗位要求标准，继续努力'}。</p>
-                <p style="margin-bottom:12px"><strong style="color:var(--primary-light)">💡 优势领域：</strong>${competencies.sort((a, b) => b.score - a.score).slice(0, 2).map(c => c.name + '（' + c.score + '分）').join('、')}表现突出。</p>
-                <p style="margin-bottom:12px"><strong style="color:var(--warning)">⚠ 待提升：</strong>${competencies.sort((a, b) => a.score - b.score).slice(0, 1).map(c => c.name + '（' + c.score + '分）').join('')}仍有提升空间。</p>
-                <p><strong style="color:${allPassed ? 'var(--success)' : 'var(--text-muted)'}">${allPassed ? '✓ 转正建议：所有章节已通过，综合评估优秀，建议予以转正' : '○ 完成所有章节考试后将生成转正建议'}</strong></p>
+                <p style="margin-bottom:12px"><strong style="color:#059669">✓ 总体评价：</strong>综合评分${avgScore}分，${avgScore >= 80 ? '已达到岗位要求标准，表现优秀' : '接近岗位要求标准，继续努力'}。</p>
+                <p style="margin-bottom:12px"><strong style="color:#2c3e6b">💡 优势领域：</strong>${competencies.sort((a, b) => b.score - a.score).slice(0, 2).map(c => c.name + '（' + c.score + '分）').join('、')}表现突出。</p>
+                <p style="margin-bottom:12px"><strong style="color:#b45309">⚠ 待提升：</strong>${competencies.sort((a, b) => a.score - b.score).slice(0, 1).map(c => c.name + '（' + c.score + '分）').join('')}仍有提升空间。</p>
+                <p><strong style="color:${allPassed ? '#059669' : '#5a6b82'}">${allPassed ? '✓ 转正建议：所有章节已通过，综合评估优秀，建议予以转正' : '○ 完成所有章节考试后将生成转正建议'}</strong></p>
             </div>
         </div>` : ''}
     `;
