@@ -269,7 +269,7 @@ PageRenderers['adm-resources'] = async function(c) {
                 </div>
                 <div style="display:flex;gap:8px">
                     <button class="btn btn-primary btn-sm" onclick="previewChapterContent(${ch.id}, '${ch.title}')">👁️ 查看要点</button>
-                    <button class="btn btn-ghost btn-sm" onclick="previewChapterContent(${ch.id}, '${ch.title}')">编辑要点</button>
+                    <button class="btn btn-ghost btn-sm" onclick="editChapterContent(${ch.id}, '${ch.title}')">✏️ 编辑要点</button>
                     <button class="btn btn-ghost btn-sm" onclick="showToast('文件上传需连接Supabase Storage，暂未开放','warning')">📎 上传</button>
                 </div>
             </div>
@@ -304,7 +304,11 @@ function previewChapterContent(chapterId, chapterTitle) {
     if (!modal) return;
 
     let body = '';
-    if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
+    // 优先读取编辑后保存的内容
+    const editedContents = JSON.parse(localStorage.getItem('sop_editedContents') || '{}');
+    if (editedContents[chapterId]) {
+        body = editedContents[chapterId];
+    } else if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
         body = CHAPTER_CONTENTS[chapterId].body;
     } else {
         body = '# 内容未配置\n\n该章节的学习要点尚未配置，请联系管理员。';
@@ -329,6 +333,159 @@ function previewChapterContent(chapterId, chapterTitle) {
             </div>
         </div>
     `;
+}
+
+// 编辑章节学习要点内容
+function editChapterContent(chapterId, chapterTitle) {
+    const modal = document.getElementById('contentPreviewModal');
+    if (!modal) return;
+
+    let rawContent = '';
+    if (typeof CHAPTER_CONTENTS !== 'undefined' && CHAPTER_CONTENTS[chapterId]) {
+        rawContent = CHAPTER_CONTENTS[chapterId].body;
+    } else {
+        rawContent = '# 第' + chapterId + '章：' + chapterTitle + '\n\n';
+    }
+
+    // 获取 localStorage 中可能已有的编辑版本
+    const storageKey = 'sop_chapterContent_' + chapterId;
+    const savedContent = localStorage.getItem(storageKey);
+    const editingContent = savedContent !== null ? savedContent : rawContent;
+
+    modal.innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)this.remove()" style="z-index:1000">
+            <div class="modal" style="width:92vw;max-width:1000px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)">
+                    <div class="modal-title" style="margin:0">✏️ 编辑学习要点 - 第${chapterId}章：${chapterTitle}</div>
+                    <button class="btn btn-ghost btn-sm" onclick="this.closest('.modal-overlay').remove()">✕ 关闭</button>
+                </div>
+                <div style="display:flex;gap:0;flex:1;overflow:hidden;min-height:0">
+                    <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border)">
+                        <div style="padding:8px 16px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+                            📝 Markdown 编辑区（支持 Markdown 语法）
+                        </div>
+                        <textarea id="chapterContentEditor" style="flex:1;width:100%;border:none;outline:none;resize:none;padding:16px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;background:var(--bg-primary);color:var(--text-primary);tab-size:2" spellcheck="false">${editingContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column">
+                        <div style="padding:8px 16px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--bg-secondary)">
+                            👁️ 实时预览
+                        </div>
+                        <div id="chapterContentPreview" style="flex:1;overflow-y:auto;padding:16px;font-size:14px;line-height:1.8">
+                            <div class="md-content">${markdownToHtml(editingContent)}</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                    <span style="font-size:12px;color:var(--text-muted)" id="editorCharCount">共 ${Math.round(editingContent.length/1000)}k 字</span>
+                    <div style="display:flex;gap:8px">
+                        <button class="btn btn-ghost btn-sm" onclick="resetEditorContent(${chapterId})">↩️ 重置</button>
+                        <button class="btn btn-ghost btn-sm" onclick="toggleEditorPreview()">🔄 切换全屏</button>
+                        <button class="btn btn-primary btn-sm" onclick="saveChapterContent(${chapterId}, '${chapterTitle}')">💾 保存修改</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 绑定实时预览
+    const editor = document.getElementById('chapterContentEditor');
+    if (editor) {
+        editor.addEventListener('input', function() {
+            const preview = document.getElementById('chapterContentPreview');
+            const charCount = document.getElementById('editorCharCount');
+            if (preview) {
+                preview.innerHTML = '<div class="md-content">' + markdownToHtml(this.value) + '</div>';
+            }
+            if (charCount) {
+                charCount.textContent = '共 ' + Math.round(this.value.length / 1000) + 'k 字';
+            }
+        });
+        // 支持 Tab 缩进
+        editor.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 2;
+                this.dispatchEvent(new Event('input'));
+            }
+        });
+    }
+
+    // 存储当前章节ID用于重置
+    window._editingChapterId = chapterId;
+    window._originalChapterContent = rawContent;
+}
+
+// 重置编辑器内容为原始内容
+function resetEditorContent(chapterId) {
+    const editor = document.getElementById('chapterContentEditor');
+    if (!editor) return;
+    const storageKey = 'sop_chapterContent_' + chapterId;
+    localStorage.removeItem(storageKey);
+    editor.value = window._originalChapterContent || '';
+    editor.dispatchEvent(new Event('input'));
+    showToast('已重置为原始内容', 'success');
+}
+
+// 切换编辑器全屏/分屏模式
+function toggleEditorPreview() {
+    const editor = document.getElementById('chapterContentEditor');
+    const preview = document.getElementById('chapterContentPreview');
+    if (!editor || !preview) return;
+    
+    const editorPane = editor.closest('div[style*="flex-direction:column"]');
+    const previewPane = preview.closest('div[style*="flex-direction:column"]');
+    
+    if (editorPane && previewPane) {
+        const isHidden = previewPane.style.display === 'none';
+        if (isHidden) {
+            // 恢复分屏
+            editorPane.style.display = 'flex';
+            previewPane.style.display = 'flex';
+        } else {
+            // 只显示编辑器（全屏编辑）
+            previewPane.style.display = 'none';
+        }
+    }
+}
+
+// 保存编辑后的章节内容
+function saveChapterContent(chapterId, chapterTitle) {
+    const editor = document.getElementById('chapterContentEditor');
+    if (!editor) return;
+    
+    const newContent = editor.value.trim();
+    if (!newContent) {
+        showToast('内容不能为空', 'warning');
+        return;
+    }
+
+    // 保存到 localStorage
+    const storageKey = 'sop_chapterContent_' + chapterId;
+    localStorage.setItem(storageKey, newContent);
+
+    // 同时更新内存中的 CHAPTER_CONTENTS
+    if (typeof CHAPTER_CONTENTS !== 'undefined') {
+        CHAPTER_CONTENTS[chapterId] = {
+            chapterId: chapterId,
+            title: chapterTitle,
+            body: newContent
+        };
+    }
+
+    // 更新 local-data.js 中的 getLocalLearningContent 会读取 localStorage
+    // 保存到统一的存储key，方便后续读取
+    const allEditedContents = JSON.parse(localStorage.getItem('sop_editedContents') || '{}');
+    allEditedContents[chapterId] = newContent;
+    localStorage.setItem('sop_editedContents', JSON.stringify(allEditedContents));
+
+    showToast('第' + chapterId + '章学习要点已保存', 'success');
+
+    // 关闭弹窗
+    const modal = document.querySelector('#contentPreviewModal .modal-overlay');
+    if (modal) modal.remove();
 }
 
 // 管理员 - 题库管理
