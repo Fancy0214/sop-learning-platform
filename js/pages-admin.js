@@ -75,7 +75,7 @@ PageRenderers['adm-dash'] = async function(c) {
             </div>
             <div class="stat-card">
                 <div class="label">题库总量</div>
-                <div class="value">${(getStore('questions') || []).length}</div>
+                <div class="value">${getAllExamQuestions().length}</div>
             </div>
         </div>
         <div class="grid grid-2">
@@ -495,39 +495,42 @@ function saveChapterContent(chapterId, chapterTitle) {
 
 // 管理员 - 题库管理
 PageRenderers['adm-questions'] = async function(c) {
-    const allQuestions = getStore('questions') || [];
+    const allQuestions = getAllExamQuestions();
+    const typeLabels = { choice_single: '单选题', choice_multi: '多选题', true_false: '判断题', fill_blank: '填空题', essay: '问答题', practice: '实操题' };
     const typeCounts = {};
     allQuestions.forEach(q => {
-        const label = QUESTION_TYPE_LABELS[q.questionType] || q.questionType;
+        const label = typeLabels[q.questionType] || q.questionType;
         typeCounts[label] = (typeCounts[label] || 0) + 1;
     });
-
     let typeSummary = Object.entries(typeCounts).map(([k, v]) => `<span class="badge badge-primary">${k}: ${v}</span>`).join(' ');
 
-    let qRows = allQuestions.slice(0, 30).map((q, i) => {
-        const typeLabel = QUESTION_TYPE_LABELS[q.questionType] || q.questionType;
-        const chTitle = CHAPTERS_CONFIG.find(ch => ch.id === q.chapterId)?.title || '';
-        const isManual = q.questionType === 'essay' || q.questionType === 'practice';
-        return `<tr>
-            <td>${chTitle}</td>
-            <td><span class="badge badge-primary">${typeLabel}</span></td>
-            <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${q.questionText}">${q.questionText}</td>
-            <td><span class="badge ${q.difficulty === 'easy' ? 'badge-success' : q.difficulty === 'medium' ? 'badge-warning' : 'badge-danger'}">${q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}</span></td>
-            <td>${q.score}分</td>
-            <td>${isManual ? '<span class="badge badge-warning">人工</span>' : '<span class="badge badge-success">自动</span>'}</td>
-            <td>
-                <button class="btn btn-ghost btn-sm" onclick="showToast('编辑功能开发中','warning')">编辑</button>
-                <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="showToast('删除功能开发中','warning')">删除</button>
-            </td>
-        </tr>`;
-    }).join('');
+    // 每章题数统计
+    const perChapter = {};
+    for (let ch = 1; ch <= 13; ch++) perChapter[ch] = 0;
+    allQuestions.forEach(q => { perChapter[q.chapterId] = (perChapter[q.chapterId] || 0) + 1; });
+
+    function renderRows(list) {
+        return list.map(q => {
+            const typeLabel = typeLabels[q.questionType] || q.questionType;
+            const chTitle = CHAPTERS_CONFIG.find(ch => ch.id === q.chapterId)?.title || '';
+            const isManual = q.questionType === 'essay' || q.questionType === 'practice';
+            const safeText = q.questionText.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            return `<tr>
+                <td style="white-space:nowrap">${chTitle}</td>
+                <td><span class="badge badge-primary">${typeLabel}</span></td>
+                <td style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${safeText}">${q.questionText}</td>
+                <td><span class="badge ${q.difficulty === 'easy' ? 'badge-success' : q.difficulty === 'medium' ? 'badge-warning' : 'badge-danger'}">${q.difficulty === 'easy' ? '简单' : q.difficulty === 'medium' ? '中等' : '困难'}</span></td>
+                <td>${q.score}分</td>
+                <td>${isManual ? '<span class="badge badge-warning">人工</span>' : '<span class="badge badge-success">自动</span>'}</td>
+            </tr>`;
+        }).join('');
+    }
 
     c.innerHTML = `
         <div class="topbar">
             <h2>📝 题库管理</h2>
             <div class="topbar-actions">
-                <button class="btn btn-ghost btn-sm" onclick="showToast('已生成正式考题','success')">📋 生成考题</button>
-                <button class="btn btn-primary btn-sm" onclick="showToast('AI智能出题功能开发中','warning')">🤖 AI出题</button>
+                <span style="font-size:13px;color:#5a6b82">共 <b style="color:#2c3e6b;font-size:16px">${allQuestions.length}</b> 题 · 13 章节</span>
             </div>
         </div>
         <div class="stats-row">
@@ -540,40 +543,57 @@ PageRenderers['adm-questions'] = async function(c) {
                 <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">${typeSummary}</div>
             </div>
             <div class="stat-card">
-                <div class="label">覆盖章节</div>
-                <div class="value">13</div>
+                <div class="label">每章题数</div>
+                <div style="margin-top:6px;font-size:12px;color:#5a6b82;line-height:1.8">${CHAPTERS_CONFIG.map(ch => `第${ch.order}章 ${perChapter[ch.id]||0}题`).join('<br>')}</div>
             </div>
         </div>
         <div class="card">
             <div class="filter-bar">
-                <select class="form-input form-select" style="width:160px">
-                    <option>全部章节</option>
-                    ${CHAPTERS_CONFIG.map(ch => `<option>第${ch.order}章：${ch.title}</option>`).join('')}
+                <select id="qFilterChapter" class="form-input form-select" style="width:200px" onchange="window._filterQuestions()">
+                    <option value="">全部章节</option>
+                    ${CHAPTERS_CONFIG.map(ch => `<option value="${ch.id}">第${ch.order}章：${ch.title} (${perChapter[ch.id]||0}题)</option>`).join('')}
                 </select>
-                <select class="form-input form-select" style="width:130px">
-                    <option>全部题型</option>
-                    <option>单选题</option>
-                    <option>判断题</option>
-                    <option>填空题</option>
-                    <option>问答题</option>
-                    <option>实操题</option>
+                <select id="qFilterType" class="form-input form-select" style="width:120px" onchange="window._filterQuestions()">
+                    <option value="">全部题型</option>
+                    <option value="choice_single">单选题</option>
+                    <option value="choice_multi">多选题</option>
+                    <option value="true_false">判断题</option>
+                    <option value="fill_blank">填空题</option>
+                    <option value="essay">问答题</option>
+                    <option value="practice">实操题</option>
                 </select>
-                <select class="form-input form-select" style="width:130px">
-                    <option>全部难度</option>
-                    <option>简单</option>
-                    <option>中等</option>
-                    <option>困难</option>
+                <select id="qFilterDiff" class="form-input form-select" style="width:120px" onchange="window._filterQuestions()">
+                    <option value="">全部难度</option>
+                    <option value="easy">简单</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">困难</option>
                 </select>
+                <span id="qFilterCount" style="font-size:13px;color:#5a6b82;margin-left:8px"></span>
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>章节</th><th>题型</th><th>题目内容</th><th>难度</th><th>分值</th><th>评分方式</th><th>操作</th></tr></thead>
-                    <tbody>${qRows}</tbody>
+                    <thead><tr><th>章节</th><th>题型</th><th>题目内容</th><th>难度</th><th>分值</th><th>评分方式</th></tr></thead>
+                    <tbody id="qTableBody">${renderRows(allQuestions)}</tbody>
                 </table>
             </div>
-            ${allQuestions.length > 30 ? `<div style="text-align:center;padding:12px;color:#5a6b82;font-size:13px">显示前30题，共${allQuestions.length}题</div>` : ''}
         </div>
     `;
+
+    window._allExamQ = allQuestions;
+    window._renderQRows = renderRows;
+    window._filterQuestions = function() {
+        const ch = document.getElementById('qFilterChapter')?.value;
+        const tp = document.getElementById('qFilterType')?.value;
+        const df = document.getElementById('qFilterDiff')?.value;
+        let filtered = window._allExamQ;
+        if (ch) filtered = filtered.filter(q => q.chapterId === parseInt(ch));
+        if (tp) filtered = filtered.filter(q => q.questionType === tp);
+        if (df) filtered = filtered.filter(q => q.difficulty === df);
+        const tbody = document.getElementById('qTableBody');
+        if (tbody) tbody.innerHTML = window._renderQRows(filtered);
+        const countEl = document.getElementById('qFilterCount');
+        if (countEl) countEl.textContent = `筛选结果：${filtered.length} 题`;
+    };
 };
 
 // 管理员 - 评分管理
@@ -1106,7 +1126,7 @@ PageRenderers['adm-config'] = async function(c) {
                 <div><span style="color:#5a6b82">系统版本</span><br>${APP_CONFIG.version}</div>
                 <div><span style="color:#5a6b82">数据模式</span><br>${isSupabaseReady() ? '<span class="badge badge-success">Supabase</span>' : '<span class="badge badge-warning">本地模拟</span>'}</div>
                 <div><span style="color:#5a6b82">章节总数</span><br>13个</div>
-                <div><span style="color:#5a6b82">题库总量</span><br>${(getStore('questions') || []).length}题</div>
+                <div><span style="color:#5a6b82">题库总量</span><br>${getAllExamQuestions().length}题</div>
             </div>
         </div>
     `;

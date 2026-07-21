@@ -267,6 +267,18 @@ function getLocalQuestions(chapterId) {
     return (getStore('questions') || []).filter(q => q.chapterId === chapterId);
 }
 
+// 获取全部真实题库（跨章节）
+function getAllExamQuestions() {
+    if (typeof EXAM_QUESTIONS === 'undefined') return [];
+    const all = [];
+    for (let ch = 1; ch <= 13; ch++) {
+        if (EXAM_QUESTIONS[ch]) {
+            EXAM_QUESTIONS[ch].forEach(q => all.push({ ...q, chapterId: ch }));
+        }
+    }
+    return all;
+}
+
 // ===== 本地考试操作 =====
 function createLocalExam(userId, chapterId, questionsSnapshot, timeLimit) {
     const exams = getStore('exams') || [];
