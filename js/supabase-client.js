@@ -740,6 +740,38 @@ async function deleteUser(userId) {
     return deleteLocalUser(userId);
 }
 
+// ===== 批量获取所有用户的学习进度 =====
+/**
+ * 一次性获取所有用户的学习进度，用于仪表盘批量展示
+ * @returns {Promise<Array>} 进度数据数组，每项包含 userId, chapterId, status 等
+ */
+async function getAllUsersProgress() {
+    if (isSupabaseReady()) {
+        const { data, error } = await supabaseClient
+            .from('learning_progress')
+            .select('*');
+        if (!error && data && data.length > 0) {
+            return data.map(formatProgressRow);
+        }
+        // fallback: 从本地获取所有用户的进度
+        const users = getLocalUsers();
+        let allProgress = [];
+        for (const user of users) {
+            const progress = getLocalProgress(user.id);
+            allProgress = allProgress.concat(progress);
+        }
+        return allProgress;
+    }
+    // 本地模式：获取所有用户的进度
+    const users = getLocalUsers();
+    let allProgress = [];
+    for (const user of users) {
+        const progress = getLocalProgress(user.id);
+        allProgress = allProgress.concat(progress);
+    }
+    return allProgress;
+}
+
 // ===== 评估报告 =====
 
 async function getEvaluations(userId, type) {
