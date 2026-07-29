@@ -4,28 +4,32 @@
 
 // 管理员 - 仪表盘
 PageRenderers['adm-dash'] = async function(c) {
-    const users = await getAllUsers();
+    // 并行加载数据，减少等待时间
+    const [users, allProgress, pendingReviews] = await Promise.all([
+        getAllUsers(),
+        getAllUsersProgress(),
+        getPendingReviews()
+    ]);
+
     const employees = users.filter(u => u.role === ROLES.EMPLOYEE && u.isActive);
     const totalEmp = employees.length;
-    const pendingReviews = await getPendingReviews();
 
-    // 计算平均进度
-    let totalProgress = 0;
-    for (const emp of employees) {
-        const progress = await getUserProgress(emp.id);
-        const completed = progress.filter(p => p.status === 'completed').length;
-        const chapters = getChaptersForGroup(emp.group);
-        totalProgress += chapters.length > 0 ? Math.round((completed / chapters.length) * 100) : 0;
+    // 按用户ID分组进度数据（避免重复查询）
+    const progressByUser = {};
+    for (const p of allProgress) {
+        if (!progressByUser[p.userId]) progressByUser[p.userId] = [];
+        progressByUser[p.userId].push(p);
     }
-    const avgProgress = totalEmp > 0 ? Math.round(totalProgress / totalEmp) : 0;
 
-    // 学员进度表
+    // 单次循环计算统计 + 生成表格
+    let totalProgress = 0;
     let rows = '';
     for (const emp of employees) {
-        const progress = await getUserProgress(emp.id);
+        const progress = progressByUser[emp.id] || [];
         const chapters = getChaptersForGroup(emp.group);
         const completed = progress.filter(p => p.status === 'completed').length;
         const pct = chapters.length > 0 ? Math.round((completed / chapters.length) * 100) : 0;
+        totalProgress += pct;
 
         rows += `<tr>
             <td><div style="display:flex;align-items:center;gap:8px">
@@ -39,6 +43,7 @@ PageRenderers['adm-dash'] = async function(c) {
             <td>${statusBadge(pct === 100 ? 'completed' : pct > 0 ? 'in_progress' : 'not_started')}</td>
         </tr>`;
     }
+    const avgProgress = totalEmp > 0 ? Math.round(totalProgress / totalEmp) : 0;
 
     // 待处理事项
     let pendingHtml = '';
