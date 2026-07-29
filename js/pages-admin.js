@@ -756,16 +756,39 @@ async function doSubmitScore(examId) {
 
 // 管理员 - 进度监控
 PageRenderers['adm-progress'] = async function(c) {
-    const users = await getAllUsers();
+    // 并行加载数据：用户列表 + 所有用户进度 + 所有考试记录
+    const [users, allProgress, allExams] = await Promise.all([
+        getAllUsers(),
+        getAllUsersProgress(),
+        getAllExamRecords()
+    ]);
     const employees = users.filter(u => u.role === ROLES.EMPLOYEE && u.isActive);
+
+    // 按用户ID分组进度数据（避免重复查询）
+    const progressByUser = {};
+    for (const p of allProgress) {
+        if (!progressByUser[p.userId]) progressByUser[p.userId] = [];
+        progressByUser[p.userId].push(p);
+    }
+
+    // 按用户ID分组考试数据（用于计算平均分）
+    const examsByUser = {};
+    for (const e of (allExams || [])) {
+        if (!examsByUser[e.userId]) examsByUser[e.userId] = [];
+        examsByUser[e.userId].push(e);
+    }
 
     let rows = '';
     for (const emp of employees) {
-        const progress = await getUserProgress(emp.id);
+        const progress = progressByUser[emp.id] || [];
         const chapters = getChaptersForGroup(emp.group);
         const completed = progress.filter(p => p.status === 'completed').length;
         const pct = chapters.length > 0 ? Math.round((completed / chapters.length) * 100) : 0;
-        const avgScore = calcAvgScore(emp.id);
+        
+        // 计算平均分（使用内存中的考试数据）
+        const userExams = examsByUser[emp.id] || [];
+        const passedExams = userExams.filter(e => e.totalScore);
+        const avgScore = passedExams.length > 0 ? Math.round(passedExams.reduce((a, e) => a + e.totalScore, 0) / passedExams.length) : 0;
 
         // 章节状态徽章
         let chBadges = '';
@@ -790,32 +813,6 @@ PageRenderers['adm-progress'] = async function(c) {
             <td>${pct}%</td>
         </tr>`;
     }
-
-    c.innerHTML = `
-        <div class="topbar">
-            <h2>📈 进度监控</h2>
-            <div class="topbar-actions">
-                <button class="btn btn-primary btn-sm" onclick="showToast('报告导出功能开发中','warning')">📄 导出报告</button>
-            </div>
-        </div>
-        <div class="card">
-            <div class="filter-bar">
-                <select class="form-input form-select" style="width:140px" onchange="filterProgressTable(this.value)">
-                    <option value="">全部组别</option>
-                    <option>销售组</option>
-                    <option>置换组</option>
-                </select>
-                <input class="form-input" placeholder="搜索学员..." style="width:180px">
-            </div>
-            <div class="table-wrap">
-                <table id="progressTable">
-                    <thead><tr><th>姓名</th><th>组别</th><th>章节完成</th><th>平均分</th><th>章节状态</th><th>进度</th><th>完成度</th></tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-        </div>
-    `;
-};
 
 function filterProgressTable(group) {
     const table = document.getElementById('progressTable');
