@@ -8,6 +8,13 @@ let supabaseClient = null;
 let _migrationDone = false;
 
 /**
+ * 获取当前登录用户
+ */
+function getCurrentUser() {
+    return typeof AppState !== 'undefined' ? AppState.currentUser : null;
+}
+
+/**
  * 初始化 Supabase 客户端
  */
 function initSupabase() {
@@ -693,10 +700,19 @@ async function toggleUserActive(userId, isActive) {
     if (isSupabaseReady()) {
         const cloudUserId = await _getCloudUserId(userId);
         if (cloudUserId) {
-            await supabaseClient
-                .from('profiles')
-                .update({ is_active: isActive, updated_at: new Date().toISOString() })
-                .eq('id', cloudUserId);
+            // 获取当前登录管理员的用户名
+            const currentUser = getCurrentUser();
+            if (currentUser && currentUser.username) {
+                const { data, error } = await supabaseClient.rpc('toggle_user_active_by_admin', {
+                    p_admin_username: currentUser.username,
+                    p_target_user_id: cloudUserId,
+                    p_is_active: isActive
+                });
+                if (error) {
+                    console.error('Toggle user active error:', error);
+                    return false;
+                }
+            }
         }
     }
     return toggleLocalUserActive(userId, isActive);
@@ -706,10 +722,19 @@ async function deleteUser(userId) {
     if (isSupabaseReady()) {
         const cloudUserId = await _getCloudUserId(userId);
         if (cloudUserId) {
-            await supabaseClient
-                .from('profiles')
-                .delete()
-                .eq('id', cloudUserId);
+            // 获取当前登录管理员的用户名
+            const currentUser = getCurrentUser();
+            if (currentUser && currentUser.username) {
+                const { data, error } = await supabaseClient.rpc('delete_user_by_admin', {
+                    p_admin_username: currentUser.username,
+                    p_target_user_id: cloudUserId
+                });
+                if (error) {
+                    console.error('Delete user error:', error);
+                    return false;
+                }
+                return true;
+            }
         }
     }
     return deleteLocalUser(userId);
