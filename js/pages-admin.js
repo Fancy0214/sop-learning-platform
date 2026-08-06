@@ -1,5 +1,6 @@
 /**
  * SOP Academy - 管理员页面
+ * Fixed: removed invalid getAllUsersProgress() call that caused site-wide "Page Not Found" error
  */
 
 // 管理员 - 仪表盘
