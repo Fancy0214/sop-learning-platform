@@ -561,3 +561,16 @@ function getDemoContent(chapterId) {
 
     return md;
 }
+
+// ===== 获取全量真实题库（用于管理面板统计） =====
+function getAllExamQuestions() {
+    if (typeof EXAM_QUESTIONS === 'undefined') return [];
+    const all = [];
+    for (const [chId, questions] of Object.entries(EXAM_QUESTIONS)) {
+        const chapterId = parseInt(chId);
+        questions.forEach(q => {
+            all.push({ ...q, chapterId });
+        });
+    }
+    return all;
+}

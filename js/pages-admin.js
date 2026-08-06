@@ -814,6 +814,7 @@ PageRenderers['adm-progress'] = async function(c) {
             <td>${pct}%</td>
         </tr>`;
     }
+}
 
 function filterProgressTable(group) {
     const table = document.getElementById('progressTable');
